@@ -740,13 +740,13 @@ void AnnotatedCameraWidget::drawSteer(QPainter &p) {
   QString str;
   int width = 192;
 
-  str.sprintf("%.0f°", steer_angle);
+  str.sprintf("%.1f°", steer_angle);
   QRect rect = QRect(x, y, width, width);
 
   p.setPen(QColor(255, 255, 255, 200));
   p.drawText(rect, Qt::AlignCenter, str);
 
-  str.sprintf("%.0f°", desire_angle);
+  str.sprintf("%.1f°", desire_angle);
   rect.setRect(x, y + 80, width, width);
 
   p.setPen(QColor(155, 255, 155, 200));
