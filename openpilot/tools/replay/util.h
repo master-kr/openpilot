@@ -7,7 +7,7 @@
 #include <string>
 #include <string_view>
 #include <vector>
-#include "cereal/messaging/messaging.h"
+#include "openpilot/cereal/messaging/messaging.h"
 
 enum CameraType {
   RoadCam = 0,
@@ -47,10 +47,6 @@ private:
 };
 
 void precise_nano_sleep(int64_t nanoseconds, std::atomic<bool> &interrupt_requested);
-std::string decompressBZ2(const std::string &in, std::atomic<bool> *abort = nullptr);
-std::string decompressBZ2(const std::byte *in, size_t in_size, std::atomic<bool> *abort = nullptr);
-std::string decompressZST(const std::string &in, std::atomic<bool> *abort = nullptr);
-std::string decompressZST(const std::byte *in, size_t in_size, std::atomic<bool> *abort = nullptr);
 std::string getUrlWithoutQuery(const std::string &url);
 std::string formattedDataSize(size_t size);
 std::string extractFileName(const std::string& file);
