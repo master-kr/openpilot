@@ -26,7 +26,7 @@ from openpilot.selfdrive.controls.lib.cutin_alert import (
 )
 
 from openpilot.common.hardware import HARDWARE
-from openpilot.system.version import get_build_metadata
+from openpilot.common.version import get_build_metadata
 
 REPLAY = "REPLAY" in os.environ
 SIMULATION = "SIMULATION" in os.environ

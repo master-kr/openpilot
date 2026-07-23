@@ -2,7 +2,9 @@
 
 // has to be in this order
 #ifdef __linux__
+//#include <linux/v4l2-controls.h>
 #include "third_party/linux/include/v4l2-controls.h"
+
 #include <linux/videodev2.h>
 #else
 #define V4L2_BUF_FLAG_KEYFRAME 8
@@ -14,7 +16,7 @@
 #include <thread>
 #include <vector>
 
-#include "cereal/messaging/messaging.h"
+#include "openpilot/cereal/messaging/messaging.h"
 #include "msgq/visionipc/visionipc.h"
 #include "common/queue.h"
 #include "system/loggerd/loggerd.h"
@@ -26,6 +28,8 @@ public:
   virtual int encode_frame(VisionBuf* buf, VisionIpcBufExtra *extra) = 0;
   virtual void encoder_open() = 0;
   virtual void encoder_close() = 0;
+  virtual void set_bitrate(int bitrate) = 0;
+  virtual void request_keyframe() = 0;
 
   void publisher_publish(int segment_num, uint32_t idx, VisionIpcBufExtra &extra, unsigned int flags, kj::ArrayPtr<capnp::byte> header, kj::ArrayPtr<capnp::byte> dat);
 

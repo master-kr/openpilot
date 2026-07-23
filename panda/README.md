@@ -1,23 +1,21 @@
 # Welcome to panda
 
-![panda tests](https://github.com/commaai/panda/workflows/tests/badge.svg)
-![panda drivers](https://github.com/commaai/panda/workflows/drivers/badge.svg)
-
-panda speaks CAN and CAN FD, and it runs on [STM32F413](https://www.st.com/resource/en/reference_manual/rm0430-stm32f413423-advanced-armbased-32bit-mcus-stmicroelectronics.pdf) and [STM32H725](https://www.st.com/resource/en/reference_manual/rm0468-stm32h723733-stm32h725735-and-stm32h730-value-line-advanced-armbased-32bit-mcus-stmicroelectronics.pdf).
+panda speaks CAN and CAN FD, and it runs on the [STM32H725](https://www.st.com/resource/en/reference_manual/rm0468-stm32h723733-stm32h725735-and-stm32h730-value-line-advanced-armbased-32bit-mcus-stmicroelectronics.pdf).
 
 ## Directory structure
 
 ```
 .
 ├── board           # Code that runs on the STM32
-├── drivers         # Drivers (not needed for use with Python)
 ├── python          # Python userspace library for interfacing with the panda
-├── tests           # Tests and helper programs for panda
+├── tests           # Tests for panda
+├── scripts         # Miscellaneous used for panda development and debugging
+├── examples        # Example scripts for using a panda in a car
 ```
 
 ## Safety Model
 
-panda is compiled with safety firmware provided by [opendbc](https://github.com/commaai/opendbc). See details about the car safety models, safety testing, and code rigor in that repository.
+panda is compiled with vehicle-specific safety logic provided by [opendbc](https://github.com/commaai/opendbc). See details about the car safety models, safety testing, and code rigor in that repository.
 
 ## Code Rigor
 
@@ -27,42 +25,29 @@ The panda firmware is written for its use in conjunction with [openpilot](https:
 These are the [CI regression tests](https://github.com/commaai/panda/actions) we have in place:
 * A generic static code analysis is performed by [cppcheck](https://github.com/danmar/cppcheck/).
 * In addition, [cppcheck](https://github.com/danmar/cppcheck/) has a specific addon to check for [MISRA C:2012](https://misra.org.uk/) violations. See [current coverage](https://github.com/commaai/panda/blob/master/tests/misra/coverage_table).
-* Compiler options are relatively strict: the flags `-Wall -Wextra -Wstrict-prototypes -Werror` are enforced.
-* The [safety logic](https://github.com/commaai/panda/tree/master/opendbc/safety) is tested and verified by [unit tests](https://github.com/commaai/panda/tree/master/opendbc/safety/tests) for each supported car variant.
-to ensure that the behavior remains unchanged.
+* Compiler options are strict: the flags `-Wall -Wextra -Wstrict-prototypes -Werror` are enforced.
+* The [safety logic](https://github.com/commaai/panda/tree/master/opendbc/safety) is tested and verified by [unit tests](https://github.com/commaai/panda/tree/master/opendbc/safety/tests) for each supported car variant to ensure that the behavior remains unchanged.
 * A hardware-in-the-loop test verifies panda's functionalities on all active panda variants, including:
   * additional safety model checks
   * compiling and flashing the bootstub and app code
   * receiving, sending, and forwarding CAN messages on all buses
-  * CAN loopback and latency tests through USB and SPI
+  * CAN loopback and latency tests through SPI
 
 The above tests are themselves tested by:
 * a [mutation test](tests/misra/test_mutation.py) on the MISRA coverage
-
-In addition, we run the [ruff linter](https://github.com/astral-sh/ruff) and [mypy](https://mypy-lang.org/) on panda's Python library.
+* a [mutation test]([tests/misra/test_mutation.py](https://github.com/commaai/opendbc/blob/master/opendbc/safety/tests/mutation.sh)) on the vehicle-specific safety logic
 
 ## Usage
 
-Setup dependencies:
 ```bash
-# Ubuntu
-sudo apt-get install dfu-util gcc-arm-none-eabi python3-pip libffi-dev git clang-17
-
-# macOS
-brew install --cask gcc-arm-embedded
-brew install python3 dfu-util gcc@13
-```
-
-Clone panda repository and install:
-``` bash
 git clone https://github.com/commaai/panda.git
 cd panda
 
-# install dependencies
-pip install -e .[dev]
+# setup your environment
+./setup.sh
 
-# install panda
-python setup.py install
+# build fw + run the tests
+./test.sh
 ```
 
 See [the Panda class](https://github.com/commaai/panda/blob/master/python/__init__.py) for how to interact with the panda.
@@ -92,14 +77,6 @@ sudo udevadm control --reload-rules && sudo udevadm trigger
 ```
 
 The panda jungle uses different udev rules. See [the repo](https://github.com/commaai/panda_jungle#udev-rules) for instructions.
-
-## Software interface support
-
-As a universal car interface, it should support every reasonable software interface.
-
-- [Python library](https://github.com/commaai/panda/tree/master/python)
-- [C++ library](https://github.com/commaai/openpilot/tree/master/selfdrive/pandad)
-- [socketcan in kernel](https://github.com/commaai/panda/tree/master/drivers/linux) (alpha)
 
 ## Licensing
 

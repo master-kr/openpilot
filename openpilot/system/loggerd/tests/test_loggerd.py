@@ -5,10 +5,12 @@ import random
 import string
 import subprocess
 import time
+from collections.abc import Collection
 from collections import defaultdict
 from pathlib import Path
-import pytest
 
+from openpilot.common.parameterized import parameterized
+from openpilot.common.test import OpenpilotTestCase
 import openpilot.cereal.messaging as messaging
 from openpilot.cereal import log
 from openpilot.cereal.services import SERVICE_LIST
@@ -20,7 +22,7 @@ from openpilot.common.hardware import TICI
 from openpilot.system.loggerd.xattr_cache import getxattr
 from openpilot.system.loggerd.deleter import PRESERVE_ATTR_NAME, PRESERVE_ATTR_VALUE
 from openpilot.system.manager.process_config import managed_processes
-from openpilot.system.version import get_version
+from openpilot.common.version import get_version
 from openpilot.tools.lib.helpers import RE
 from openpilot.tools.lib.logreader import LogReader
 from msgq.visionipc import VisionIpcServer, VisionStreamType
@@ -31,7 +33,7 @@ CEREAL_SERVICES = [f for f in log.Event.schema.union_fields if f in SERVICE_LIST
                    and SERVICE_LIST[f].should_log and "encode" not in f.lower()]
 
 
-class TestLoggerd:
+class TestLoggerd(OpenpilotTestCase):
   def _get_latest_log_dir(self):
     log_dirs = sorted(Path(Paths.log_root()).iterdir(), key=lambda f: f.stat().st_mtime)
     return log_dirs[-1]
@@ -74,15 +76,15 @@ class TestLoggerd:
     end_type = SentinelType.endOfRoute if route else SentinelType.endOfSegment
     assert msgs[-1].sentinel.type == end_type
 
-  def _publish_random_messages(self, services: list[str]) -> dict[str, list]:
-    pm = messaging.PubMaster(services)
+  def _publish_random_messages(self, services: Collection[str]) -> dict[str, list]:
+    pm = messaging.PubMaster(list(services))
 
     managed_processes["loggerd"].start()
     for s in services:
       assert pm.wait_for_readers_to_update(s, timeout=5)
 
     sent_msgs = defaultdict(list)
-    for _ in range(random.randint(2, 10) * 100):
+    for i in range(random.randint(2, 10) * 100):
       for s in services:
         try:
           m = messaging.new_message(s)
@@ -90,6 +92,12 @@ class TestLoggerd:
           m = messaging.new_message(s, random.randint(2, 10))
         pm.send(s, m)
         sent_msgs[s].append(m)
+
+      # Keep msgq's finite per-service queues from wrapping; this test asserts
+      # that loggerd logged every message we sent.
+      if (i + 1) % 100 == 0:
+        for s in services:
+          assert pm.wait_for_readers_to_update(s, timeout=5)
 
     for s in services:
       assert pm.wait_for_readers_to_update(s, timeout=5)
@@ -161,8 +169,8 @@ class TestLoggerd:
     ]
     params = Params()
     for k, _, v in fake_params:
-      params.put(k, v)
-    params.put("AccessToken", "abc")
+      params.put(k, v, block=True)
+    params.put("AccessToken", "abc", block=True)
 
     lr = list(LogReader(str(self._gen_bootlog())))
     initData = lr[0].initData
@@ -186,9 +194,8 @@ class TestLoggerd:
       assert getattr(initData, initData_key) == v
       assert logged_params[param_key].decode() == v
 
-  @pytest.mark.xdist_group("camera_encoder_tests")  # setting xdist group ensures tests are run in same worker, prevents encoderd from crashing
   def test_rotation(self):
-    Params().put("RecordFront", True)
+    Params().put("RecordFront", True, block=True)
 
     expected_files = {"rlog.zst", "qlog.zst", "qcamera.ts", "fcamera.hevc", "dcamera.hevc", "ecamera.hevc"}
 
@@ -271,7 +278,9 @@ class TestLoggerd:
         assert recv_cnt == 0, f"got {recv_cnt} {s} msgs in qlog"
       else:
         # check logged message count matches decimation
-        expected_cnt = (len(msgs) - 1) // SERVICE_LIST[s].decimation + 1
+        decimation = SERVICE_LIST[s].decimation
+        assert decimation is not None
+        expected_cnt = (len(msgs) - 1) // decimation + 1
         assert recv_cnt == expected_cnt, f"expected {expected_cnt} msgs for {s}, got {recv_cnt}"
 
   def test_rlog(self):
@@ -299,28 +308,26 @@ class TestLoggerd:
     assert getxattr(segment_dir, PRESERVE_ATTR_NAME) == PRESERVE_ATTR_VALUE
 
   def test_not_preserving_nonbookmarked_segments(self):
-    services = set(random.sample(CEREAL_SERVICES, random.randint(5, 10))) - {"userBookmark", "audioFeedback"}
+    services = set(random.sample(CEREAL_SERVICES, random.randint(5, 10))) - {"userBookmark"}
     self._publish_random_messages(services)
 
     segment_dir = self._get_latest_log_dir()
     assert getxattr(segment_dir, PRESERVE_ATTR_NAME) is None
 
-  @pytest.mark.xdist_group("camera_encoder_tests")  # setting xdist group ensures tests are run in same worker, prevents encoderd from crashing
-  @pytest.mark.parametrize("record_front", [True, False])
+  @parameterized.expand([True, False])
   def test_record_front(self, record_front):
     params = Params()
-    params.put_bool("RecordFront", record_front)
+    params.put_bool("RecordFront", record_front, block=True)
 
     self._publish_camera_and_audio_messages()
 
     dcamera_hevc_exists = os.path.exists(os.path.join(self._get_latest_log_dir(), 'dcamera.hevc'))
     assert dcamera_hevc_exists == record_front
 
-  @pytest.mark.xdist_group("camera_encoder_tests")  # setting xdist group ensures tests are run in same worker, prevents encoderd from crashing
-  @pytest.mark.parametrize("record_audio", [True, False])
+  @parameterized.expand([True, False])
   def test_record_audio(self, record_audio):
     params = Params()
-    params.put_bool("RecordAudio", record_audio)
+    params.put_bool("RecordAudio", record_audio, block=True)
 
     self._publish_camera_and_audio_messages()
 

@@ -19,7 +19,7 @@ from openpilot.common.markdown import parse_markdown
 from openpilot.common.swaglog import cloudlog
 from openpilot.selfdrive.selfdrived.alertmanager import set_offroad_alert
 from openpilot.common.hardware import AGNOS, HARDWARE
-from openpilot.system.version import get_build_metadata
+from openpilot.common.version import get_build_metadata
 
 LOCK_FILE = os.getenv("UPDATER_LOCK_FILE", "/tmp/safe_staging_overlay.lock")
 STAGING_ROOT = os.getenv("UPDATER_STAGING_ROOT", "/data/safe_staging")
@@ -66,7 +66,7 @@ class WaitTimeHelper:
 
 def write_time_to_param(params, param) -> None:
   t = datetime.datetime.now(datetime.UTC).replace(tzinfo=None)
-  params.put(param, t)
+  params.put(param, t, block=True)
 
 def run(cmd: list[str], cwd: str | None = None) -> str:
   return subprocess.check_output(cmd, cwd=cwd, stderr=subprocess.STDOUT, encoding='utf8')
@@ -139,7 +139,7 @@ def init_overlay() -> None:
   cloudlog.info("preparing new safe staging area")
 
   params = Params()
-  params.put_bool("UpdateAvailable", False)
+  params.put_bool("UpdateAvailable", False, block=True)
   set_consistent_flag(False)
   dismount_overlay()
   run(["sudo", "rm", "-rf", STAGING_ROOT])
@@ -170,7 +170,7 @@ def init_overlay() -> None:
   run(["sudo", "chmod", "755", os.path.join(OVERLAY_METADATA, "work")])
 
   git_diff = run(["git", "diff", "--submodule=diff"], OVERLAY_MERGED)
-  params.put("GitDiff", git_diff)
+  params.put("GitDiff", git_diff, block=True)
   cloudlog.info(f"git diff output:\n{git_diff}")
 
 
@@ -255,6 +255,9 @@ class Updater:
       b = self.get_branch(BASEDIR)
     b = {
       ("tizi", "release3"): "release-tizi",
+      ("tizi", "release3-staging"): "release-tizi-staging",
+      ("mici", "release3"): "release-mici",
+      ("mici", "release3-staging"): "release-mici-staging",
     }.get((HARDWARE.get_device_type(), b), b)
     return b
 
@@ -283,19 +286,19 @@ class Updater:
     return run(["git", "rev-parse", "HEAD"], path).rstrip()
 
   def set_params(self, update_success: bool, failed_count: int, exception: str | None) -> None:
-    self.params.put("UpdateFailedCount", failed_count)
-    self.params.put("UpdaterTargetBranch", self.target_branch)
+    self.params.put("UpdateFailedCount", failed_count, block=True)
+    self.params.put("UpdaterTargetBranch", self.target_branch, block=True)
 
-    self.params.put_bool("UpdaterFetchAvailable", self.update_available)
+    self.params.put_bool("UpdaterFetchAvailable", self.update_available, block=True)
     if len(self.branches):
-      self.params.put("UpdaterAvailableBranches", ','.join(self.branches.keys()))
+      self.params.put("UpdaterAvailableBranches", ','.join(self.branches.keys()), block=True)
 
     last_uptime_onroad = self.params.get("UptimeOnroad", return_default=True)
     last_route_count = self.params.get("RouteCount", return_default=True)
     if update_success:
-      self.params.put("LastUpdateTime", datetime.datetime.now(datetime.UTC).replace(tzinfo=None))
-      self.params.put("LastUpdateUptimeOnroad", last_uptime_onroad)
-      self.params.put("LastUpdateRouteCount", last_route_count)
+      self.params.put("LastUpdateTime", datetime.datetime.now(datetime.UTC).replace(tzinfo=None), block=True)
+      self.params.put("LastUpdateUptimeOnroad", last_uptime_onroad, block=True)
+      self.params.put("LastUpdateRouteCount", last_route_count, block=True)
     else:
       last_uptime_onroad = self.params.get("LastUpdateUptimeOnroad", return_default=True)
       last_route_count = self.params.get("LastUpdateRouteCount", return_default=True)
@@ -303,19 +306,11 @@ class Updater:
     if exception is None:
       self.params.remove("LastUpdateException")
     else:
-      self.params.put("LastUpdateException", exception)
+      self.params.put("LastUpdateException", exception, block=True)
 
     # Write out current and new version info
     def get_description(basedir: str) -> str:
       if not os.path.exists(basedir):
-        return ""
-
-      def read_version(path: str) -> str:
-        for rel_path in ("common/version.h", "openpilot/common/version.h"):
-          version_path = os.path.join(path, rel_path)
-          if os.path.exists(version_path):
-            with open(version_path) as f:
-              return f.read().split('"')[1]
         return ""
 
       version = ""
@@ -325,7 +320,8 @@ class Updater:
       try:
         branch = self.get_branch(basedir)
         commit = self.get_commit_hash(basedir)[:7]
-        version = read_version(basedir)
+        with open(os.path.join(basedir, "openpilot", "common", "version.h")) as f:
+          version = f.read().split('"')[1]
 
         commit_unix_ts = run(["git", "show", "-s", "--format=%ct", "HEAD"], basedir).rstrip()
         dt = datetime.datetime.fromtimestamp(int(commit_unix_ts))
@@ -333,11 +329,11 @@ class Updater:
       except Exception:
         cloudlog.exception("updater.get_description")
       return f"{version} / {branch} / {commit} / {commit_date}"
-    self.params.put("UpdaterCurrentDescription", get_description(BASEDIR))
-    self.params.put("UpdaterCurrentReleaseNotes", parse_release_notes(BASEDIR))
-    self.params.put("UpdaterNewDescription", get_description(FINALIZED))
-    self.params.put("UpdaterNewReleaseNotes", parse_release_notes(FINALIZED))
-    self.params.put_bool("UpdateAvailable", self.update_ready)
+    self.params.put("UpdaterCurrentDescription", get_description(BASEDIR), block=True)
+    self.params.put("UpdaterCurrentReleaseNotes", parse_release_notes(BASEDIR), block=True)
+    self.params.put("UpdaterNewDescription", get_description(FINALIZED), block=True)
+    self.params.put("UpdaterNewReleaseNotes", parse_release_notes(FINALIZED), block=True)
+    self.params.put_bool("UpdateAvailable", self.update_ready, block=True)
 
     # Handle user prompt
     for alert in ("Offroad_UpdateFailed", "Offroad_ConnectivityNeeded", "Offroad_ConnectivityNeededPrompt"):
@@ -373,7 +369,7 @@ class Updater:
     setup_git_options(OVERLAY_MERGED)
     output = run(["git", "ls-remote", "--heads"], OVERLAY_MERGED)
 
-    self.branches = defaultdict(lambda: None)
+    self.branches.clear()
     for line in output.split('\n'):
       ls_remotes_re = r'(?P<commit_sha>\b[0-9a-f]{5,40}\b)(\s+)(refs\/heads\/)(?P<branch_name>.*$)'
       x = re.fullmatch(ls_remotes_re, line.strip())
@@ -392,11 +388,11 @@ class Updater:
   def fetch_update(self) -> None:
     cloudlog.info("attempting git fetch inside staging overlay")
 
-    self.params.put("UpdaterState", "downloading...")
+    self.params.put("UpdaterState", "downloading...", block=True)
 
     # TODO: cleanly interrupt this and invalidate old update
     set_consistent_flag(False)
-    self.params.put_bool("UpdateAvailable", False)
+    self.params.put_bool("UpdateAvailable", False, block=True)
 
     setup_git_options(OVERLAY_MERGED)
 
@@ -424,7 +420,7 @@ class Updater:
       handle_agnos_update()
 
     # Create the finalized, ready-to-swap update
-    self.params.put("UpdaterState", "finalizing update...")
+    self.params.put("UpdaterState", "finalizing update...", block=True)
     finalize_update()
     cloudlog.info("finalize success!")
 
@@ -453,7 +449,7 @@ def main() -> None:
 
     if not params.get("InstallDate"):
       t = datetime.datetime.now(datetime.UTC).replace(tzinfo=None)
-      params.put("InstallDate", t)
+      params.put("InstallDate", t, block=True)
 
     updater = Updater()
     update_failed_count = 0 # TODO: Load from param?
@@ -463,7 +459,7 @@ def main() -> None:
     set_consistent_flag(False)
 
     # set initial state
-    params.put("UpdaterState", "idle")
+    params.put("UpdaterState", "idle", block=True)
 
     # Run the update loop
     first_run = True
@@ -487,7 +483,7 @@ def main() -> None:
         update_failed_count += 1
 
         # check for update
-        params.put("UpdaterState", "checking...")
+        params.put("UpdaterState", "checking...", block=True)
         updater.check_for_update()
 
         # download update
@@ -517,7 +513,7 @@ def main() -> None:
         OVERLAY_INIT.unlink(missing_ok=True)
 
       try:
-        params.put("UpdaterState", "idle")
+        params.put("UpdaterState", "idle", block=True)
         update_successful = (update_failed_count == 0)
         updater.set_params(update_successful, update_failed_count, exception)
       except Exception:

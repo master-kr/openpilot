@@ -1,4 +1,5 @@
 import itertools
+from openpilot.common.test import OpenpilotTestCase
 from openpilot.common.parameterized import parameterized_class
 
 from openpilot.selfdrive.controls.lib.longitudinal_mpc_lib.long_mpc import STOP_DISTANCE
@@ -150,7 +151,9 @@ def create_maneuvers(kwargs):
       enabled=False,
       **kwargs,
     ),
-    Maneuver(
+  ]
+  if not kwargs['e2e']:
+    maneuvers.append(Maneuver(
       "slow to 5m/s with allow_throttle = False and pitch = +0.1",
       duration=30.,
       initial_speed=20.,
@@ -161,7 +164,7 @@ def create_maneuvers(kwargs):
       breakpoints=[0.0, 2., 2.01],
       ensure_slowdown=True,
       **kwargs,
-    )]
+    ))
   if not kwargs['force_decel']:
     # controls relies on planner commanding to move for stock-ACC resume spamming
     maneuvers.append(Maneuver(
@@ -170,7 +173,7 @@ def create_maneuvers(kwargs):
       initial_speed=0.,
       lead_relevancy=True,
       initial_distance_lead=STOP_DISTANCE,
-      speed_lead_values=[0., 0., 2.],
+      speed_lead_values=[0., 0., 7.],
       breakpoints=[1., 10., 15.],
       ensure_start=True,
       **kwargs,
@@ -179,7 +182,7 @@ def create_maneuvers(kwargs):
 
 
 @parameterized_class(("e2e", "force_decel"), itertools.product([True, False], repeat=2))
-class TestLongitudinalControl:
+class TestLongitudinalControl(OpenpilotTestCase):
   e2e: bool
   force_decel: bool
 

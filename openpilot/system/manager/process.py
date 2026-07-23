@@ -70,10 +70,6 @@ class ManagerProcess(ABC):
   restart_if_crash = False
 
   @abstractmethod
-  def prepare(self) -> None:
-    pass
-
-  @abstractmethod
   def start(self) -> None:
     pass
 
@@ -149,9 +145,6 @@ class NativeProcess(ManagerProcess):
     self.sigkill = sigkill
     self.launcher = nativelauncher
 
-  def prepare(self) -> None:
-    pass
-
   def start(self) -> None:
     # In case we only tried a non blocking stop we need to stop it before restarting
     if self.shutting_down:
@@ -177,14 +170,6 @@ class PythonProcess(ManagerProcess):
     self.launcher = launcher
     self.restart_if_crash = restart_if_crash
 
-  def prepare(self) -> None:
-    if self.enabled:
-      cloudlog.info(f"preimporting {self.module}")
-      try:
-        importlib.import_module(self.module)
-      except Exception as e:
-        print(f"failed to import {self.module}: {e}")
-
   def start(self) -> None:
     # In case we only tried a non blocking stop we need to stop it before restarting
     if self.shutting_down:
@@ -193,12 +178,8 @@ class PythonProcess(ManagerProcess):
     if self.proc is not None:
       return
 
-    # TODO: this is just a workaround for this tinygrad check:
-    # https://github.com/tinygrad/tinygrad/blob/ac9c96dae1656dc220ee4acc39cef4dd449aa850/tinygrad/device.py#L26
-    name = self.name if "modeld" not in self.name else "MainProcess"
-
     cloudlog.info(f"starting python {self.module}")
-    self.proc = Process(name=name, target=self.launcher, args=(self.module, self.name))
+    self.proc = Process(name=self.name, target=self.launcher, args=(self.module, self.name))
     self.proc.start()
     self.shutting_down = False
 
@@ -216,9 +197,6 @@ class DaemonProcess(ManagerProcess):
   @staticmethod
   def should_run(started, params, CP):
     return True
-
-  def prepare(self) -> None:
-    pass
 
   def start(self) -> None:
     if self.params is None:
@@ -256,9 +234,6 @@ def ensure_running(procs: ValuesView[ManagerProcess], started: bool, params=None
 
   running = []
   for p in procs:
-    if p.proc is not None and p.proc.exitcode is not None:
-      p.stop(block=False)
-
     if p.enabled and p.name not in not_run and p.should_run(started, params, CP):
       if p.restart_if_crash and p.proc is not None and not p.proc.is_alive():
         cloudlog.error(f'Restarting {p.name} (exitcode {p.proc.exitcode})')

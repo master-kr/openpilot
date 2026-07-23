@@ -2,13 +2,14 @@ import json
 from Crypto.PublicKey import RSA
 from pathlib import Path
 
+from openpilot.common.test import OpenpilotTestCase
 from openpilot.common.params import Params
 from openpilot.system.athena.registration import register, UNREGISTERED_DONGLE_ID
 from openpilot.system.athena.tests.helpers import MockResponse
 from openpilot.common.hardware.hw import Paths
 
 
-class TestRegistration:
+class TestRegistration(OpenpilotTestCase):
 
   def setup_method(self):
     # clear params and setup key paths
@@ -37,7 +38,7 @@ class TestRegistration:
     dongle = "DONGLE_ID_123"
     m = mocker.patch("openpilot.system.athena.registration.api_get", autospec=True)
     for persist, params in [(True, True), (True, False), (False, True)]:
-      self.params.put("DongleId", dongle if params else "")
+      self.params.put("DongleId", dongle if params else "", block=True)
       with open(self.dongle_id, "w") as f:
         f.write(dongle if persist else "")
       assert register() == dongle

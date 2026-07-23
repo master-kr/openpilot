@@ -9,7 +9,7 @@ from openpilot.system.loggerd.uploader import listdir_by_creation
 from openpilot.system.loggerd.xattr_cache import getxattr
 
 MIN_BYTES = 5 * 1024 * 1024 * 1024
-MIN_PERCENT = 30
+MIN_PERCENT = 10
 
 DELETE_LAST = ['boot', 'crash']
 
@@ -58,15 +58,13 @@ def deleter_thread(exit_event: threading.Event):
       for delete_dir in sorted(dirs, key=lambda d: (d in DELETE_LAST, d in preserved_dirs)):
         delete_path = os.path.join(Paths.log_root(), delete_dir)
 
-        try:
-          if any(name.endswith(".lock") for name in os.listdir(delete_path)):
-            continue
+        if any(name.endswith(".lock") for name in os.listdir(delete_path)):
+          continue
 
+        try:
           cloudlog.info(f"deleting {delete_path}")
           shutil.rmtree(delete_path)
           break
-        except FileNotFoundError:
-          continue
         except OSError:
           cloudlog.exception(f"issue deleting {delete_path}")
       exit_event.wait(.1)

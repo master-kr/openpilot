@@ -44,12 +44,6 @@ def unblock_stdout() -> None:
     exit_status = os.wait()[1] >> 8
     os._exit(exit_status)
 
-
-def write_onroad_params(started, params):
-  params.put_bool("IsOnroad", started)
-  params.put_bool("IsOffroad", not started)
-
-
 def save_bootlog():
   # copy current params
   tmp = tempfile.mkdtemp()
@@ -60,10 +54,7 @@ def save_bootlog():
   def fn(tmpdir):
     env = os.environ.copy()
     env['PARAMS_COPY_PATH'] = tmpdir
-    loggerd_dir = os.path.join(BASEDIR, "openpilot/system/loggerd")
-    bootlog = os.path.join(loggerd_dir, "bootlog")
-    if os.path.exists(bootlog):
-      subprocess.call(bootlog, cwd=loggerd_dir, env=env)
+    subprocess.call("./bootlog", cwd=os.path.join(BASEDIR, "openpilot/system/loggerd"), env=env)
     shutil.rmtree(tmpdir)
   t = threading.Thread(target=fn, args=(tmp, ))
   t.daemon = True

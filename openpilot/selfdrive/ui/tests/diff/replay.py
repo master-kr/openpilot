@@ -10,7 +10,7 @@ from openpilot.cereal.messaging import PubMaster
 from openpilot.common.params import Params
 from openpilot.common.prefix import OpenpilotPrefix
 from openpilot.selfdrive.ui.tests.diff.diff import DIFF_OUT_DIR
-from openpilot.system.version import terms_version, training_version
+from openpilot.common.version import terms_version, training_version
 
 LayoutVariant = Literal["mici", "tizi"]
 

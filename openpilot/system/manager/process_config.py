@@ -1,11 +1,13 @@
 import os
+import operator
 import platform
-import importlib.util
 
 from openpilot.cereal import car
 from openpilot.common.params import Params
 from openpilot.common.hardware import PC, TICI
 from openpilot.system.manager.process import PythonProcess, NativeProcess, DaemonProcess
+
+import importlib.util
 
 FLASK_AVAILABLE = importlib.util.find_spec("flask") is not None
 try:
@@ -91,11 +93,19 @@ def enable_updated(started: bool, params: Params, CP: car.CarParams) -> bool:
 def check_fleet(started, params, CP: car.CarParams) -> bool:
   return FLASK_AVAILABLE
 
+def livestream(started: bool, params: Params, CP: car.CarParams) -> bool:
+  return params.get_bool("IsLiveStreaming")
+
 def or_(*fns):
+  #return lambda *args: operator.or_(*(fn(*args) for fn in fns))
   return lambda *args: any(fn(*args) for fn in fns)
 
 def and_(*fns):
+  #return lambda *args: operator.and_(*(fn(*args) for fn in fns))
   return lambda *args: all(fn(*args) for fn in fns)
+
+def not_(*fns):
+  return lambda *args: operator.not_(*(fn(*args) for fn in fns))
 
 def enable_dm(started, params, CP: car.CarParams) -> bool:
   return (started or params.get_bool("IsDriverViewEnabled")) and params.get_int("DisableDM") == 0
@@ -200,12 +210,10 @@ procs = [
   PythonProcess("radard", "openpilot.selfdrive.controls.radard", conventional_radard),
   PythonProcess("radard_dpath", "openpilot.selfdrive.carrot.radar.radard_dpath", dpath_radard),
   PythonProcess("hardwared", "openpilot.system.hardware.hardwared", always_run),
-  PythonProcess("modem", "openpilot.system.hardware.tici.modem", always_run, enabled=TICI),
+  PythonProcess("modem", "openpilot.common.hardware.tici.modem", always_run, enabled=TICI),
   PythonProcess("tombstoned", "openpilot.system.tombstoned", always_run, enabled=not PC),
   PythonProcess("updated", "openpilot.system.updated.updated", enable_updated, enabled=not PC),
   #PythonProcess("uploader", "openpilot.system.loggerd.uploader", enable_connect),
-  PythonProcess("statsd", "openpilot.system.statsd", always_run),
-  PythonProcess("feedbackd", "openpilot.selfdrive.ui.feedback.feedbackd", only_onroad),
 
   # debug procs
   NativeProcess("bridge", "openpilot/cereal/messaging", ["./bridge"], notcar),
