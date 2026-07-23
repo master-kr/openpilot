@@ -1,5 +1,5 @@
 from openpilot.cereal import log
-from openpilot.system.hardware.base import HardwareBase
+from openpilot.common.hardware.base import HardwareBase
 
 NetworkType = log.DeviceState.NetworkType
 

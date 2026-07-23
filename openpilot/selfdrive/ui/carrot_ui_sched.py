@@ -16,7 +16,7 @@ import sys
 
 from openpilot.common.realtime import drop_realtime
 from openpilot.common.swaglog import cloudlog
-from openpilot.system.hardware import PC
+from openpilot.common.hardware import PC
 
 _VERIFY_ATTEMPTS = 2  # bounded 재시도 — 무한/매 프레임 syscall 폭주 금지
 

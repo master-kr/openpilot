@@ -29,7 +29,7 @@ import openpilot.cereal.messaging as messaging
 from openpilot.common.realtime import Ratekeeper, set_core_affinity
 from openpilot.common.params import Params, ParamKeyType
 from openpilot.common.filter_simple import MyMovingAverage
-from openpilot.system.hardware import PC, TICI
+from openpilot.common.hardware import PC, TICI
 from openpilot.selfdrive.navd.helpers import Coordinate
 from openpilot.common.constants import CV
 

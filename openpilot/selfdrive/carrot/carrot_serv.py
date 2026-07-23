@@ -15,7 +15,7 @@ import openpilot.cereal.messaging as messaging
 from openpilot.common.realtime import Ratekeeper
 from openpilot.common.params import Params
 from openpilot.common.filter_simple import MyMovingAverage
-from openpilot.system.hardware import PC, TICI
+from openpilot.common.hardware import PC, TICI
 from openpilot.selfdrive.navd.helpers import Coordinate
 from openpilot.common.constants import CV
 from openpilot.common.gps import get_gps_location_service
@@ -1416,9 +1416,9 @@ class CarrotServ:
     def _i(v, default=0):
       return default if v is None else int(v)
     def _f(v, default=0.0):
-      return default if v is None else float(v)  
+      return default if v is None else float(v)
     def _s(v, default=""):
-      return default if v is None else str(v)  
+      return default if v is None else str(v)
     if json is None:
       return
     if "carrotIndex" in json:
@@ -1542,7 +1542,7 @@ class CarrotServ:
 
         self.nPosAngle = self.nPosAnglePhone
         # self.nPosSpeed = self.ve # TODO speed from v_ego
-        self.last_update_gps_time_phone = self.last_calculate_gps_time = now        
+        self.last_update_gps_time_phone = self.last_calculate_gps_time = now
         self.nPosSpeed = float(json.get("gps_speed", 0))
         print(f"phone gps: {self.vpPosPointLatNavi}, {self.vpPosPointLonNavi}, {self.phone_gps_accuracy}, {self.nPosSpeed}")
 

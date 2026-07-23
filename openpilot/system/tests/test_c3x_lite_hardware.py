@@ -5,8 +5,8 @@ import pytest
 if os.name == "nt":
   pytest.skip("TICI hardware modules require Linux", allow_module_level=True)
 
-from openpilot.system.hardware.tici import hardware
-from openpilot.system.hardware.tici.amplifier import Amplifier
+from openpilot.common.hardware.tici import hardware
+from openpilot.common.hardware.tici.amplifier import Amplifier
 
 
 def test_c3x_lite_skips_missing_amplifier(monkeypatch):

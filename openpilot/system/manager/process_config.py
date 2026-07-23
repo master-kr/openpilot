@@ -4,7 +4,7 @@ import importlib.util
 
 from openpilot.cereal import car
 from openpilot.common.params import Params
-from openpilot.system.hardware import PC, TICI
+from openpilot.common.hardware import PC, TICI
 from openpilot.system.manager.process import PythonProcess, NativeProcess, DaemonProcess
 
 FLASK_AVAILABLE = importlib.util.find_spec("flask") is not None

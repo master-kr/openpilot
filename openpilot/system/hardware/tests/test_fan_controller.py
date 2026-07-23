@@ -1,6 +1,6 @@
 import pytest
 
-from openpilot.system.hardware.fan_controller import FanController
+from openpilot.common.hardware.fan_controller import FanController
 
 ALL_CONTROLLERS = [FanController]
 
