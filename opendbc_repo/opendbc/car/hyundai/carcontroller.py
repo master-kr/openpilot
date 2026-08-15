@@ -212,7 +212,9 @@ class CarController(CarControllerBase):
       self.button_spam1 = params.get_int("CruiseButtonTest1")
       self.button_spam2 = params.get_int("CruiseButtonTest2")
       self.button_spam3 = params.get_int("CruiseButtonTest3")
-      self.speed_from_pcm = params.get_int("SpeedFromPCM")
+      # In OEM button mode, never inject RES/SET presses to chase a Carrot target.
+      # All Hyundai-port cars are covered here, including Kia and Genesis.
+      self.speed_from_pcm = 1 if params.get_int("HyundaiKiaButtonMode") in (1, 2) else params.get_int("SpeedFromPCM")
 
       self.canfd_debug = params.get_int("CanfdDebug")
       self.camera_scc_params = params.get_int("HyundaiCameraSCC")

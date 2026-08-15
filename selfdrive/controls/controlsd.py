@@ -116,7 +116,10 @@ class Controls:
     # carrot
     gear = car.CarState.GearShifter
     driving_gear = CS.gearShifter not in (gear.neutral, gear.park, gear.reverse, gear.unknown)
-    lateral_enabled = driving_gear and self.params.get_bool("AlwaysLateral")
+    # OEM mode keeps lateral independent of ACC: mode 1 uses LFA as its switch,
+    # while mode 2 uses Cruise MAIN for cars without an LFA button.
+    hkg_oem_lateral = self.CP.carName == "hyundai" and self.params.get_int("HyundaiKiaButtonMode") in (1, 2) and CS.latEnabled
+    lateral_enabled = driving_gear and (self.params.get_bool("AlwaysLateral") or hkg_oem_lateral)
     #self.soft_hold_active = CS.softHoldActive #car.OnroadEvent.EventName.softHold in [e.name for e in self.sm['onroadEvents']]
 
     # Check which actuators can be enabled
@@ -227,7 +230,11 @@ class Controls:
     lp = self.sm['longitudinalPlan']
     if self.CP.pcmCruise:
       speed_from_pcm = self.params.get_int("SpeedFromPCM")
-      if speed_from_pcm == 1: #toyota
+      # Hyundai, Kia, and Genesis share the Hyundai port. OEM button mode must use
+      # the PCM speed here too, otherwise the HUD target can fight the stock SCC speed.
+      if self.CP.carName == "hyundai" and self.params.get_int("HyundaiKiaButtonMode") in (1, 2):
+        speed_from_pcm = 1
+      if speed_from_pcm == 1: # PCM/stock SCC (also forced by H/K/G OEM button mode)
         hudControl.setSpeed = float(CS.vCruiseCluster * CV.KPH_TO_MS)
       elif speed_from_pcm == 2:
         hudControl.setSpeed = float(max(30/3.6, desired_kph * CV.KPH_TO_MS))

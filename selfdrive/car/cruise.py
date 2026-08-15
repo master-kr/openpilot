@@ -170,6 +170,7 @@ class VCruiseCarrot:
     self._cruise_speed_unit = 10
     self._cruise_speed_unit_basic = 1
     self._cruise_button_mode = 2
+    self._hyundai_kia_button_mode = 0
     self._cancel_button_mode = 0
     self._lfa_button_mode = 0
     self.disengage_on_accelerator = self.params.get_bool("DisengageOnAccelerator")
@@ -231,6 +232,31 @@ class VCruiseCarrot:
   def v_cruise_initialized(self):
     return self.v_cruise_kph != V_CRUISE_UNSET
 
+  def _use_hyundai_kia_oem_buttons(self):
+    return self._hyundai_kia_button_mode in (1, 2) and self.CP.carName == "hyundai"
+
+  def _hkg_oem_uses_lfa_button(self):
+    return self._hyundai_kia_button_mode == 1 and self.CP.carName == "hyundai"
+
+  def _hkg_oem_uses_cruise_main(self):
+    return self._hyundai_kia_button_mode == 2 and self.CP.carName == "hyundai"
+
+  def _set_hyundai_kia_button_mode(self, mode):
+    if mode != self._hyundai_kia_button_mode:
+      # Do not carry a partially held button across a live mode change.
+      self.button_cnt = 0
+      self.button_prev = ButtonType.unknown
+      self.long_pressed = False
+    self._hyundai_kia_button_mode = mode
+
+  def _update_cruise_main_lateral(self, cruise_available):
+    # Mode 1: LFA tap owns OFF; MAIN can enable but does not disable steering.
+    # Mode 2: vehicles without LFA use Cruise MAIN as the steering ON/OFF switch.
+    if self._hkg_oem_uses_cruise_main():
+      self._lat_enabled = cruise_available
+    elif cruise_available and not self.cruise_state_available_last:
+      self._lat_enabled = True
+
   def _add_log(self, log):
     if len(log) == 0:
       self._log_timer = max(0, self._log_timer - 1)
@@ -264,6 +290,7 @@ class VCruiseCarrot:
       self._cruise_speed_unit_basic = self.params.get_int("CruiseSpeedUnitBasic")
       self._paddle_mode = self.params.get_int("PaddleMode")
       self._cruise_button_mode = self.params.get_int("CruiseButtonMode")
+      self._set_hyundai_kia_button_mode(self.params.get_int("HyundaiKiaButtonMode"))
       self._cancel_button_mode = self.params.get_int("CancelButtonMode")
       self._lfa_button_mode = self.params.get_int("LfaButtonMode")
       self.disengage_on_accelerator = self.params.get_bool("DisengageOnAccelerator")
@@ -332,16 +359,16 @@ class VCruiseCarrot:
       #self.events.append(EventName.buttonCancel)
       self._cruise_ready = True if self._activate_cruise == -2 else False
 
+    self._update_cruise_main_lateral(CS.cruiseState.available)
     if CS.cruiseState.available:
       if not self.cruise_state_available_last:
-        self._lat_enabled = True
         v_cruise_kph = self.v_ego_kph_set
       if not self.CP.pcmCruise:
         # if stock cruise is completely disabled, then we can use our own set speed logic
         self.v_cruise_kph = np.clip(v_cruise_kph, self._cruise_speed_min, self._cruise_speed_max)
         self.v_cruise_cluster_kph = self.v_cruise_kph
       else:
-        if self.speed_from_pcm == 1:
+        if self.speed_from_pcm == 1 or self._use_hyundai_kia_oem_buttons():
           self.v_cruise_kph = CS.cruiseState.speed * CV.MS_TO_KPH
           self.v_cruise_cluster_kph = CS.cruiseState.speedCluster * CV.MS_TO_KPH
         else:
@@ -381,10 +408,12 @@ class VCruiseCarrot:
     button_type = 0
     buttonEvents = CS.buttonEvents
 
-    SPEED_UP_UNIT = self._cruise_speed_unit_basic
-    SPEED_DOWN_UNIT = self._cruise_speed_unit if self._cruise_button_mode in [1, 2, 3] else self._cruise_speed_unit_basic
-    V_CRUISE_DELTA = 10
     is_metric = self.is_metric
+    oem_buttons = self._use_hyundai_kia_oem_buttons()
+    SPEED_UP_UNIT = 1 if oem_buttons else self._cruise_speed_unit_basic
+    SPEED_DOWN_UNIT = 1 if oem_buttons else (self._cruise_speed_unit if self._cruise_button_mode in [1, 2, 3] else self._cruise_speed_unit_basic)
+    # release-c3-BDv2 behavior: short press is 1 km/h (1 mph), hold is 10 km/h (5 mph).
+    V_CRUISE_DELTA = (10 if is_metric else 5 * CV.MPH_TO_KPH) if oem_buttons else 10
 
     # long press tracking
     if self.button_cnt > 0:
@@ -407,7 +436,13 @@ class VCruiseCarrot:
       ]:
         self.button_cnt = 1
         self.button_prev = bt
-        self.button_long_time = self._cruise_button_long_delay if bt in [ButtonType.accelCruise, ButtonType.decelCruise] else self._cruise_button_long_delay + 30
+        if oem_buttons:
+          # Match release-c3-BDv2 for speed/GAP holds. LFA keeps a deliberate
+          # 0.7 s hold so a normal steering toggle cannot also change LaneMode.
+          self.button_long_time = CRUISE_LONG_PRESS + 20 if bt == ButtonType.lfaButton else CRUISE_LONG_PRESS
+        else:
+          long_delay = max(1, self._cruise_button_long_delay)
+          self.button_long_time = long_delay if bt in [ButtonType.accelCruise, ButtonType.decelCruise] else long_delay + 30
 
       elif not b.pressed and self.button_cnt > 0 and bt == self.button_prev:
         if bt == ButtonType.cancel:
@@ -482,6 +517,7 @@ class VCruiseCarrot:
 
   def _update_cruise_buttons(self, CS, CC, v_cruise_kph):
     button_kph, button_type, long_pressed = self._prepare_buttons(CS, v_cruise_kph)
+    oem_buttons = self._use_hyundai_kia_oem_buttons()
 
     v_cruise_kph, button_type, long_pressed = self._carrot_command(v_cruise_kph, button_type, long_pressed)
 
@@ -508,7 +544,7 @@ class VCruiseCarrot:
         elif self._v_cruise_kph_at_brake > 0 and v_cruise_kph < self._v_cruise_kph_at_brake:
           v_cruise_kph = self._v_cruise_kph_at_brake
           self._v_cruise_kph_at_brake = 0
-        elif self._cruise_button_mode == 0:
+        elif oem_buttons or self._cruise_button_mode == 0:
           v_cruise_kph = button_kph
         else:
           v_cruise_kph = self._v_cruise_desired(CS, v_cruise_kph)
@@ -526,6 +562,8 @@ class VCruiseCarrot:
           pass
         elif not CC.enabled:
           v_cruise_kph = max(self.v_ego_kph_set, self._cruise_speed_min)
+        elif oem_buttons:
+          v_cruise_kph = button_kph
         elif self.v_ego_kph_set > v_cruise_kph + 2 and self._cruise_button_mode in [2, 3]:
           v_cruise_kph = max(self.v_ego_kph_set, self._cruise_speed_min)
         elif self._cruise_button_mode in [0, 1]:
@@ -541,7 +579,7 @@ class VCruiseCarrot:
         self._v_cruise_kph_at_brake = 0
 
       elif button_type == ButtonType.gapAdjustCruise:
-        longitudinalPersonalityMax = self.params.get_int("LongitudinalPersonalityMax")
+        longitudinalPersonalityMax = max(1, self.params.get_int("LongitudinalPersonalityMax"))
         if CS.pcmCruiseGap == 0:
           personality = (self.params.get_int('LongitudinalPersonality') - 1) % longitudinalPersonalityMax
         else:
@@ -549,7 +587,9 @@ class VCruiseCarrot:
         self.params.put_int_nonblocking('LongitudinalPersonality', personality)
         #self.events.append(EventName.personalityChanged)
       elif button_type == ButtonType.lfaButton:
-        if self._lfa_button_mode == 0:
+        if self._hkg_oem_uses_cruise_main():
+          pass
+        elif self._hkg_oem_uses_lfa_button() or self._lfa_button_mode == 0:
           self._lat_enabled = not self._lat_enabled
           self._add_log("Lateral " + "enabled" if self._lat_enabled else "disabled")
         elif self._lfa_button_mode == 2:
@@ -562,7 +602,7 @@ class VCruiseCarrot:
         print("lfaButton")
       elif button_type == ButtonType.cancel:
         self._paddle_decel_active = False
-        if self._cancel_button_mode in [1]:
+        if not oem_buttons and self._cancel_button_mode in [1]:
           self._lat_enabled = False
           self._add_log("Lateral " + "enabled" if self._lat_enabled else "disabled")
         self._cruise_cancel_state = True
@@ -576,14 +616,19 @@ class VCruiseCarrot:
         v_cruise_kph = button_kph
         self._v_cruise_kph_at_brake = 0
       elif button_type == ButtonType.gapAdjustCruise:
-        self.params.put_int_nonblocking("MyDrivingMode", self.params.get_int("MyDrivingMode") % 4 + 1) # 1,2,3,4 (1:eco, 2:safe, 3:normal, 4:high speed)
+        if oem_buttons and self.CP.openpilotLongitudinalControl:
+          self.params.put_bool_nonblocking("ExperimentalMode", not self.params.get_bool("ExperimentalMode"))
+        elif not oem_buttons:
+          self.params.put_int_nonblocking("MyDrivingMode", self.params.get_int("MyDrivingMode") % 4 + 1) # 1,2,3,4 (1:eco, 2:safe, 3:normal, 4:high speed)
       elif button_type == ButtonType.lfaButton:
-        useLaneLineSpeed = max(1, self.useLaneLineSpeed)
-        self.useLaneLineSpeedApply = useLaneLineSpeed if self.useLaneLineSpeedApply == 0 else 0
+        if not self._hkg_oem_uses_cruise_main():
+          useLaneLineSpeed = max(1, self.useLaneLineSpeed)
+          self.useLaneLineSpeedApply = useLaneLineSpeed if self.useLaneLineSpeedApply == 0 else 0
 
       elif button_type == ButtonType.cancel:
         self._cruise_cancel_state = True
-        self._lat_enabled = False
+        if not oem_buttons:
+          self._lat_enabled = False
         self._paddle_decel_active = False
         #self.params.put_bool_nonblocking("ExperimentalMode", not self.params.get_bool("ExperimentalMode"))
         self._add_log("Lateral " + "enabled" if self._lat_enabled else "disabled")
@@ -608,6 +653,11 @@ class VCruiseCarrot:
   #   nRoadLimitSpeed, vTurnSpeed
   #   gasPressed, brakePressed, standstill
   def _v_cruise_desired(self, CS, v_cruise_kph):
+    # OEM button mode must not reach Carrot's User1/User2 speed table through
+    # accelerator-tap or automatic re-engagement paths.
+    if self._use_hyundai_kia_oem_buttons():
+      return v_cruise_kph
+
     if self._cruise_button_mode == 3:
       for speed in self._cruise_speed_table:
         if v_cruise_kph < speed:

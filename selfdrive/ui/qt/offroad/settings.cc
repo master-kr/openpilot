@@ -664,6 +664,7 @@ CarrotPanel::CarrotPanel(QWidget* parent) : QWidget(parent) {
   QVBoxLayout* toggles_layout = new QVBoxLayout(toggles);
 
   cruiseToggles = new ListWidget(this);
+  cruiseToggles->addItem(new CValueControl("HyundaiKiaButtonMode", tr("Button: H/K/G OEM Mode"), tr("0:Carrot, 1:With LFA button (tap: Steering, hold: LaneMode), 2:Without LFA button (Cruise MAIN: Steering ON/OFF)"), 0, 2, 1));
   cruiseToggles->addItem(new CValueControl("CruiseButtonMode", tr("Button: Cruise Button Mode"), tr("0:Normal,1:User1,2:User2"), 0, 2, 1));
   cruiseToggles->addItem(new CValueControl("CancelButtonMode", tr("Button: Cancel Button Mode"), tr("0:Long,1:Long+Lat"), 0, 1, 1));
   cruiseToggles->addItem(new CValueControl("LfaButtonMode", tr("Button: LFA Button Mode"), tr("0:Normal,1:Decel&Stop&LeadCarReady"), 0, 1, 1));
