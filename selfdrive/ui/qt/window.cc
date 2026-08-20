@@ -16,6 +16,15 @@ MainWindow::MainWindow(QWidget *parent) : QWidget(parent) {
   settingsWindow = new SettingsWindow(this);
   main_layout->addWidget(settingsWindow);
   QObject::connect(settingsWindow, &SettingsWindow::closeSettings, this, &MainWindow::closeSettings);
+  carrot_settings_timer = new QTimer(this);
+  carrot_settings_timer->setSingleShot(true);
+  carrot_settings_timer->setInterval(20 * 1000);
+  QObject::connect(carrot_settings_timer, &QTimer::timeout, this, &MainWindow::closeSettings);
+  QObject::connect(settingsWindow, &SettingsWindow::carrotPanelChanged, [this](bool selected) {
+    if (main_layout->currentWidget() != settingsWindow) return;
+    if (selected) carrot_settings_timer->start();
+    else carrot_settings_timer->stop();
+  });
   QObject::connect(settingsWindow, &SettingsWindow::reviewTrainingGuide, [=]() {
     onboardingWindow->showTrainingGuide();
     main_layout->setCurrentWidget(onboardingWindow);
@@ -39,7 +48,7 @@ MainWindow::MainWindow(QWidget *parent) : QWidget(parent) {
     }
   });
   QObject::connect(device(), &Device::interactiveTimeout, [=]() {
-    if (main_layout->currentWidget() == settingsWindow) {
+    if (main_layout->currentWidget() == settingsWindow && !settingsWindow->isCarrotPanelSelected()) {
       closeSettings();
     }
   });
@@ -68,9 +77,11 @@ MainWindow::MainWindow(QWidget *parent) : QWidget(parent) {
 void MainWindow::openSettings(int index, const QString &param) {
   main_layout->setCurrentWidget(settingsWindow);
   settingsWindow->setCurrentPanel(index, param);
+  if (settingsWindow->isCarrotPanelSelected()) carrot_settings_timer->start();
 }
 
 void MainWindow::closeSettings() {
+  carrot_settings_timer->stop();
   main_layout->setCurrentWidget(homeWindow);
 
   if (uiState()->scene.started) {
@@ -89,6 +100,9 @@ bool MainWindow::eventFilter(QObject *obj, QEvent *event) {
       // ignore events when device is awakened by resetInteractiveTimeout
       ignore = !device()->isAwake();
       device()->resetInteractiveTimeout();
+      if (main_layout->currentWidget() == settingsWindow && settingsWindow->isCarrotPanelSelected()) {
+        carrot_settings_timer->start();
+      }
       break;
     }
     default:

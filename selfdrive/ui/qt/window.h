@@ -1,6 +1,7 @@
 #pragma once
 
 #include <QStackedLayout>
+#include <QTimer>
 #include <QWidget>
 
 #include "selfdrive/ui/qt/home.h"
@@ -22,4 +23,5 @@ private:
   HomeWindow *homeWindow;
   SettingsWindow *settingsWindow;
   OnboardingWindow *onboardingWindow;
+  QTimer *carrot_settings_timer;
 };

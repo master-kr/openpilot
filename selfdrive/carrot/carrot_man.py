@@ -52,7 +52,7 @@ NAVI_IMAGE_PARAM = "CarrotNaviImage"
 NAVI_IMAGE_BASE64_MAX_CHARS = 6 * 1024 * 1024
 NAVI_ROUTE_MAX_POINTS = 4096
 NAVI_ROUTE_SUMMARY_MAX_SCAN = 20000
-AUTO_ONROAD_DIAGNOSTICS = os.environ.get("CARROT_AUTO_ONROAD_DIAGNOSTICS", "1").strip().lower() in ("1", "true", "yes", "on")
+AUTO_ONROAD_DIAGNOSTICS = os.environ.get("CARROT_AUTO_ONROAD_DIAGNOSTICS", "0").strip().lower() in ("1", "true", "yes", "on")
 AUTO_ONROAD_TMUX_DELAY_SECONDS = float(os.environ.get("CARROT_AUTO_ONROAD_TMUX_DELAY_SECONDS", "60"))
 CARROT_EXCEPTION_UPLOAD_RETRY_SECONDS = 60.0
 
@@ -956,7 +956,7 @@ class CarrotMan:
             onroad_tmux_next_attempt_at = 0.0
 
           network_type = self.sm['deviceState'].networkType # if not force_wifi else NetworkType.wifi
-          networkConnected = False if network_type == NetworkType.none else True
+          networkConnected = network_type != NetworkType.none and not self.params.get_bool("OfflineMode")
 
           if AUTO_ONROAD_DIAGNOSTICS and onroad_start_at is not None and not is_tmux_sent:
             onroad_elapsed = now - onroad_start_at
@@ -1016,11 +1016,12 @@ class CarrotMan:
           #print(echo)
           socket.send(echo.encode())
         elif 'tmux_send' in json_obj:
-          tmux_created = self.make_tmux_data()
+          offline_mode = self.params.get_bool("OfflineMode")
+          tmux_created = self.make_tmux_data() if not offline_mode else False
           ftp_ok = self.send_tmux(json_obj['tmux_send'], "tmux_send") if tmux_created else False
           http_response = self.send_tmux_http("tmux_send") if tmux_created else None
           http_ok = http_response is not None and getattr(http_response, "ok", False)
-          result = "success" if ftp_ok or http_ok else "failed"
+          result = "offline_disabled" if offline_mode else "success" if ftp_ok or http_ok else "failed"
           echo = json.dumps({"tmux_send": json_obj['tmux_send'], "result": result, "ftp_ok": ftp_ok, "http_ok": http_ok})
           socket.send(echo.encode())
       except Exception as e:

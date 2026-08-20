@@ -6,6 +6,7 @@ from cereal import car
 from openpilot.common.params import Params
 from openpilot.system.hardware import PC, TICI
 from openpilot.system.manager.process import PythonProcess, NativeProcess, DaemonProcess
+from openpilot.selfdrive.mapd_manager import COMMON_DIR, MAPD_PATH
 
 FLASK_AVAILABLE = importlib.util.find_spec("flask") is not None
 
@@ -76,7 +77,15 @@ def enable_dm(started, params, CP: car.CarParams) -> bool:
 #  return params.get_int("EnableConnect") > 0
 
 def enable_xiaoge_data(started, params, CP: car.CarParams) -> bool:
-  return params.get_bool("ShareData")
+  # ShareData is a local TCP broadcaster. Keep it opt-in and disabled in the
+  # dedicated offline configuration.
+  return params.get_bool("ShareData") and not params.get_bool("OfflineMode")
+
+def enable_map(started, params, CP: car.CarParams) -> bool:
+  return params.get_bool("MapEnable")
+
+def enable_mapd(started, params, CP: car.CarParams) -> bool:
+  return enable_map(started, params, CP) and os.path.isdir(COMMON_DIR) and os.path.isfile(MAPD_PATH)
 
 def enable_webrtc(started, params, CP: car.CarParams) -> bool:
   return params.get_int("DisableDM") == 2
@@ -91,11 +100,11 @@ def enable_cluster_hud(started, params, CP: car.CarParams) -> bool:
     return False
 
 procs = [
-  DaemonProcess("manage_athenad", "system.athena.manage_athenad", "AthenadPid"),
+  DaemonProcess("manage_athenad", "system.athena.manage_athenad", "AthenadPid", enabled=False),
 
   NativeProcess("loggerd", "system/loggerd", ["./loggerd"], logging),
-  NativeProcess("encoderd", "system/loggerd", ["./encoderd"], only_onroad),
-  NativeProcess("stream_encoderd", "system/loggerd", ["./encoderd", "--stream"], or_(notcar, and_(only_onroad, enable_webrtc))),
+  NativeProcess("encoderd", "system/loggerd", ["./encoderd"], only_onroad, enabled=False),
+  NativeProcess("stream_encoderd", "system/loggerd", ["./encoderd", "--stream"], or_(notcar, and_(only_onroad, enable_webrtc)), enabled=False),
   PythonProcess("logmessaged", "system.logmessaged", always_run),
 
   NativeProcess("camerad", "system/camerad", ["./camerad"], driverview, enabled=not WEBCAM),
@@ -139,6 +148,11 @@ procs = [
   #PythonProcess("uploader", "system.loggerd.uploader", enable_connect),
   PythonProcess("statsd", "system.statsd", always_run),
 
+  # Korea-only offline OSM. Both processes stay completely stopped while
+  # MapEnable is 0, including map download/update work.
+  NativeProcess("mapd", COMMON_DIR, [MAPD_PATH], enable_mapd, enabled=not PC),
+  PythonProcess("mapd_manager", "selfdrive.mapd_manager", enable_map, enabled=not PC),
+
   # debug procs
   NativeProcess("bridge", "cereal/messaging", ["./bridge"], notcar),
   PythonProcess("webrtcd", "system.webrtc.webrtcd", or_(notcar, and_(only_onroad, enable_webrtc))),
@@ -148,7 +162,7 @@ procs = [
   PythonProcess("carrot_man", "selfdrive.carrot.carrot_man", always_run),#, enabled=not PC),
 
   PythonProcess("carrot_server", "selfdrive.carrot.carrot_server", always_run),
-  PythonProcess("cweb_push", "selfdrive.carrot.cweb_push", always_run, enabled=not PC),
+  PythonProcess("cweb_push", "selfdrive.carrot.cweb_push", always_run, enabled=False),
   PythonProcess("carrot_cluster", "selfdrive.carrot.cluster_autorun", enable_cluster_hud),
 
   #Xiaoge data broadcaster (conditional on ShareData param)

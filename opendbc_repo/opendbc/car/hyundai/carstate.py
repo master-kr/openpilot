@@ -577,6 +577,17 @@ class CarState(CarStateBase):
       self.ACCMode = cp_cam.vl["SCC_CONTROL"]["ACCMode"]
       self.LFA_ICON = cp_cam.vl["LFAHDA_CLUSTER"]["HDA_LFA_SymSta"]
 
+    cp_cruise_info = cp_cam if self.CP.flags & HyundaiFlags.CANFD_CAMERA_SCC else cp
+    # SCC_CONTROL is dynamically registered only when the real message is seen.
+    # Preserve the last valid stock setting if the SCC ECU later disappears
+    # (for example after OP longitudinal disables it). Do not infer button-cycle
+    # direction when no real SCC value has ever been observed.
+    if self.scc_control is not None:
+      distance_setting = int(self.scc_control.get("DISTANCE_SETTING", 0))
+      if 1 <= distance_setting <= 4:
+        self.pcmCruiseGap = distance_setting
+    ret.pcmCruiseGap = self.pcmCruiseGap
+
     if self.CP.openpilotLongitudinalControl:
       # These are not used for engage/disengage since openpilot keeps track of state using the buttons
       ret.cruiseState.enabled = cp.vl["TCS"]["ACC_REQ"] == 1
@@ -584,11 +595,9 @@ class CarState(CarStateBase):
       if self.MainMode_ACC or self.main_enabled:
         self.main_enabled = True
     else:
-      cp_cruise_info = cp_cam if self.CP.flags & HyundaiFlags.CANFD_CAMERA_SCC else cp
       ret.cruiseState.enabled = cp_cruise_info.vl["SCC_CONTROL"]["ACCMode"] in (1, 2)
       if cp_cruise_info.vl["SCC_CONTROL"]["MainMode_ACC"] == 1: # carrot
         ret.cruiseState.available = self.main_enabled = True
-        ret.pcmCruiseGap = int(np.clip(cp_cruise_info.vl["SCC_CONTROL"]["DISTANCE_SETTING"], 1, 4))
       ret.cruiseState.standstill = cp_cruise_info.vl["SCC_CONTROL"]["InfoDisplay"] >= 4
       ret.cruiseState.speed = cp_cruise_info.vl["SCC_CONTROL"]["VSetDis"] * speed_factor
       ret.brakeHoldActive = cp.vl["ESP_STATUS"]["AUTO_HOLD"] == 1 and cp_cruise_info.vl["SCC_CONTROL"]["ACCMode"] not in (1, 2)

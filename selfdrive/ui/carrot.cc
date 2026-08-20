@@ -8,6 +8,8 @@
 #include <QJsonObject>
 #include <QJsonValue>
 #include <QJsonArray>
+#include <QDateTime>
+#include <QTimeZone>
 
 //#define __TEST
 //#define __UI_TEST
@@ -1970,6 +1972,11 @@ public:
     int     myDrivingMode = 1;
 
     QString szPosRoadName = "";
+    QString mapRoadName = "";
+    float steeringAngleDeg = 0.0f;
+    bool standstill = false;
+    double standstillStartedAt = 0.0;
+    double standstillElapsed = 0.0;
     int     nRoadLimitSpeed = 30;
     int     nGoPosDist = 0;
     int     xSpdLimit = 0;
@@ -2007,6 +2014,22 @@ public:
 
         v_cruise = car_state.getVCruiseCluster();
         v_ego = car_state.getVEgoCluster();
+        steeringAngleDeg = car_state.getSteeringAngleDeg();
+        const double now = millis_since_boot();
+        if (car_state.getStandstill()) {
+          if (!standstill) standstillStartedAt = now;
+          standstill = true;
+          standstillElapsed = std::max(0.0, (now - standstillStartedAt) / 1000.0);
+        } else {
+          standstill = false;
+          standstillStartedAt = 0.0;
+          standstillElapsed = 0.0;
+        }
+        if (params.getBool("MapEnable")) {
+          mapRoadName = QString::fromStdString(params_memory.get("RoadName"));
+        } else {
+          mapRoadName.clear();
+        }
         if (carrot_man_alive) {
             active_carrot = carrot_man.getActiveCarrot();
             apply_speed = carrot_man.getDesiredSpeed();
@@ -2406,10 +2429,15 @@ public:
         }
 
         char gap_str[32];
-        int gap = params.getInt("LongitudinalPersonality") + 1;
+        auto carState = sm["carState"].getCarState();
+        int gap = std::clamp((int)carState.getPcmCruiseGap(), 0, 4);
         dx = bx + 220;
         dy = by + 77;
-        sprintf(gap_str, "%d", gap);
+        if (gap >= 1 && gap <= 4) {
+            sprintf(gap_str, "%d", gap);
+        } else {
+            strcpy(gap_str, "-");
+        }
         ui_draw_text(s, dx, dy, gap_str, 40, COLOR_WHITE, BOLD);
         if (gap_last != gap) ui_draw_text_a(s, dx, dy, gap_str, 40, COLOR_WHITE, BOLD);
         gap_last = gap;
@@ -2430,7 +2458,6 @@ public:
         dx = bx + 305;
         dy = by + 60;
         //const SubMaster& sm = *(s->sm);
-        auto carState = sm["carState"].getCarState();
         if (carState.getGearShifter() == cereal::CarState::GearShifter::UNKNOWN) strcpy(gear_str, "U");
         else if (carState.getGearShifter() == cereal::CarState::GearShifter::PARK) strcpy(gear_str, "P");
         else if (carState.getGearShifter() == cereal::CarState::GearShifter::DRIVE) {
@@ -2536,8 +2563,7 @@ public:
         // 시간표시
         int show_datetime = params.getInt("ShowDateTime");
         if (show_datetime) {
-            time_t now = time(nullptr);
-            struct tm* local = localtime(&now);
+            const QDateTime seoul = QDateTime::currentDateTimeUtc().toTimeZone(QTimeZone("Asia/Seoul"));
 
             int x = 170;// s->fb_w - 300;
             int y = 120;// 150;
@@ -2545,15 +2571,15 @@ public:
 
             nvgTextAlign(s->vg, NVG_ALIGN_CENTER | NVG_ALIGN_BOTTOM);
             if (show_datetime == 1 || show_datetime == 2) {
-                strftime(str, sizeof(str), "%H:%M", local);
+                snprintf(str, sizeof(str), "%s", seoul.toString("HH:mm").toUtf8().constData());
                 ui_draw_text(s, x, y, str, 100, COLOR_WHITE, BOLD, 3.0f, 8.0f);
 
             }
             if (show_datetime == 1 || show_datetime == 3) {
                 //strftime(str, sizeof(str), "%m-%d-%a", local);
                 const char* weekdays_ko[] = { "일", "월", "화", "수", "목", "금", "토" };
-                strftime(str, sizeof(str), "%m-%d", local); // 날짜만 가져옴
-                int weekday_index = local->tm_wday; // tm_wday: 0=일, 1=월, ..., 6=토
+                snprintf(str, sizeof(str), "%s", seoul.toString("MM-dd").toUtf8().constData());
+                int weekday_index = seoul.date().dayOfWeek() % 7; // QDate: 1=Mon ... 7=Sun
                 snprintf(str + strlen(str), sizeof(str) - strlen(str), "(%s)", weekdays_ko[weekday_index]);
 
                 ui_draw_text(s, x, y + 70, str, 60, COLOR_WHITE, BOLD, 3.0f, 8.0f);
@@ -2564,6 +2590,56 @@ public:
                 ui_draw_text(s, x, nav_y, szPosRoadName.toStdString().c_str(), 35, COLOR_WHITE, BOLD, 3.0f, 8.0f);
             }
         }
+    }
+    void drawStopTimer(const UIState* s) {
+        if (!standstill) return;
+        const int elapsed = std::max(0, (int)standstillElapsed);
+        char elapsed_str[32];
+        snprintf(elapsed_str, sizeof(elapsed_str), "%d:%02d", elapsed / 60, elapsed % 60);
+        nvgTextAlign(s->vg, NVG_ALIGN_LEFT | NVG_ALIGN_BOTTOM);
+        ui_draw_text(s, 45, 285, "STOP", 52, COLOR_ORANGE, BOLD, 3.0f, 6.0f);
+        ui_draw_text(s, 185, 285, elapsed_str, 52, COLOR_WHITE, BOLD, 3.0f, 6.0f);
+    }
+    void drawRoadName(const UIState* s) {
+        if (!params.getBool("MapEnable") || mapRoadName.isEmpty()) return;
+        QString text = mapRoadName.simplified();
+        if (text.size() > 28) text = text.left(27) + QStringLiteral("…");
+        const QByteArray utf8 = text.toUtf8();
+        nvgFontFace(s->vg, BOLD);
+        nvgFontSize(s->vg, 48);
+        float bounds[4] = {};
+        nvgTextBounds(s->vg, 0, 0, utf8.constData(), nullptr, bounds);
+        const int width = std::min((int)(bounds[2] - bounds[0]) + 50, (int)(s->fb_w * 0.62f));
+        const int x = s->fb_w / 2;
+        ui_fill_rect(s->vg, {x - width / 2, 28, width, 68}, COLOR_BLACK_ALPHA(130), 18);
+        nvgTextAlign(s->vg, NVG_ALIGN_CENTER | NVG_ALIGN_BOTTOM);
+        ui_draw_text(s, x, 82, utf8.constData(), 48, COLOR_WHITE, BOLD, 2.0f, 5.0f);
+    }
+    void drawSteeringAngle(const UIState* s) {
+        const float deadzone = 1.0f;
+        const bool left = steeringAngleDeg < -deadzone;
+        const bool right = steeringAngleDeg > deadzone;
+        const NVGcolor color = left ? nvgRGBA(70, 150, 255, 255) :
+                               right ? nvgRGBA(255, 160, 40, 255) : COLOR_WHITE_ALPHA(220);
+        const int x = s->fb_w - 125;
+        const int y = 320;
+
+        // Compact steering-wheel icon, positioned directly below the upper TPMS block.
+        nvgBeginPath(s->vg);
+        nvgCircle(s->vg, x - 42, y - 15, 31);
+        nvgMoveTo(s->vg, x - 70, y - 23);
+        nvgLineTo(s->vg, x - 14, y - 23);
+        nvgMoveTo(s->vg, x - 42, y - 15);
+        nvgLineTo(s->vg, x - 42, y + 14);
+        nvgStrokeColor(s->vg, color);
+        nvgStrokeWidth(s->vg, 7.0f);
+        nvgStroke(s->vg);
+
+        char angle[32];
+        const char *direction = left ? "L" : right ? "R" : "";
+        snprintf(angle, sizeof(angle), "%s %.1f°", direction, std::fabs(steeringAngleDeg));
+        nvgTextAlign(s->vg, NVG_ALIGN_CENTER | NVG_ALIGN_BOTTOM);
+        ui_draw_text(s, x + 35, y, angle, 42, color, BOLD, 2.0f, 5.0f);
     }
     void drawConnInfo(const UIState* s) {
         int y = 10;
@@ -3067,6 +3143,8 @@ void ui_draw(UIState *s, ModelRenderer* model_renderer, int w, int h) {
 
   drawCarrot.drawDebug(s);
   drawCarrot.drawDateTime(s);
+  drawCarrot.drawStopTimer(s);
+  drawCarrot.drawRoadName(s);
   //drawCarrot.drawConnInfo(s);
   drawCarrot.drawDeviceInfo(s);
   int show_tpms = params.getInt("ShowTpms");
@@ -3083,6 +3161,7 @@ void ui_draw(UIState *s, ModelRenderer* model_renderer, int w, int h) {
     drawCarrot.drawTpms3(s);
     break;
   }
+  drawCarrot.drawSteeringAngle(s);
 
   drawTurnInfo.draw(s);
 

@@ -21,12 +21,14 @@ class SettingsWindow : public QFrame {
 public:
   explicit SettingsWindow(QWidget *parent = 0);
   void setCurrentPanel(int index, const QString &param = "");
+  bool isCarrotPanelSelected() const;
 
 protected:
   void showEvent(QShowEvent *event) override;
 
 signals:
   void closeSettings();
+  void carrotPanelChanged(bool selected);
   void reviewTrainingGuide();
   void showDriverView();
   void expandToggleDescription(const QString &param);

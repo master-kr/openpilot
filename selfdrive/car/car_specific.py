@@ -4,7 +4,6 @@ import cereal.messaging as messaging
 from opendbc.car import DT_CTRL, structs
 from opendbc.car.interfaces import MAX_CTRL_SPEED
 from opendbc.car.volkswagen.values import CarControllerParams as VWCarControllerParams
-from opendbc.car.hyundai.interface import ENABLE_BUTTONS as HYUNDAI_ENABLE_BUTTONS
 from opendbc.car.hyundai.carstate import PREV_BUTTON_SAMPLES as HYUNDAI_PREV_BUTTON_SAMPLES
 
 from openpilot.selfdrive.selfdrived.events import Events, ET
@@ -51,6 +50,7 @@ class CarSpecificEvents:
     self.vCruise_prev = 250
     self.carrotCruise_prev = False
     self.tesla_lkas_button_prev = False
+    self.hyundai_cancel_latched = False
 
   def update_params(self):
     if self.frame % 100 == 0:
@@ -156,11 +156,24 @@ class CarSpecificEvents:
     elif self.CP.brand == 'hyundai':
       # On some newer model years, the CANCEL button acts as a pause/resume button based on the PCM state
       # To avoid re-engaging when openpilot cancels, check user engagement intention via buttons
-      # Main button also can trigger an engagement on these cars
-      self.cruise_buttons.append(any(ev.type in HYUNDAI_ENABLE_BUTTONS for ev in CS.buttonEvents))
+      # Only a new RES/SET press is accepted as engagement intent after CANCEL.
+      cancel_pressed = any(ev.type == ButtonType.cancel and ev.pressed for ev in CS.buttonEvents)
+      resume_pressed = any(ev.type in (ButtonType.accelCruise, ButtonType.decelCruise) and ev.pressed
+                           for ev in CS.buttonEvents)
+      if cancel_pressed:
+        self.hyundai_cancel_latched = True
+      elif self.hyundai_cancel_latched and resume_pressed:
+        # A new RES/SET press is explicit user intent to engage again. This also
+        # handles vehicles whose PCM returned to enabled before the button press.
+        self.hyundai_cancel_latched = False
+
+      self.cruise_buttons.append(resume_pressed)
       events = self.create_common_events(CS, CS_prev, extra_gears=(GearShifter.sport, GearShifter.manumatic),
-                                         #pcm_enable=self.CP.pcmCruise, allow_enable=any(self.cruise_buttons), allow_button_cancel=False)
-                                         pcm_enable=self.CP.pcmCruise, allow_enable=True, allow_button_cancel=False)
+                                         pcm_enable=self.CP.pcmCruise,
+                                         allow_enable=any(self.cruise_buttons) and not self.hyundai_cancel_latched,
+                                         allow_button_cancel=True)
+      if resume_pressed and not self.hyundai_cancel_latched:
+        events.add(EventName.buttonEnable)
 
       # low speed steer alert hysteresis logic (only for cars with steer cut off above 10 m/s)
       if CS.vEgo < (self.CP.minSteerSpeed + 2.) and self.CP.minSteerSpeed > 10.:

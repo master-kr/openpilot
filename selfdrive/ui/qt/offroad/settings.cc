@@ -539,6 +539,7 @@ SettingsWindow::SettingsWindow(QWidget *parent) : QFrame(parent) {
     panel->setContentsMargins(lr_margin, 25, lr_margin, 25);
 
     ScrollView *panel_frame = new ScrollView(panel, this);
+    panel_frame->setProperty("carrotPanel", qobject_cast<CarrotPanel *>(panel) != nullptr);
     panel_widget->addWidget(panel_frame);
 
     QObject::connect(btn, &QPushButton::clicked, [=, w = panel_frame]() {
@@ -546,6 +547,10 @@ SettingsWindow::SettingsWindow(QWidget *parent) : QFrame(parent) {
       panel_widget->setCurrentWidget(w);
     });
   }
+
+  QObject::connect(panel_widget, &QStackedWidget::currentChanged, this, [this]() {
+    emit carrotPanelChanged(isCarrotPanelSelected());
+  });
   sidebar_layout->setContentsMargins(50, 50, 100, 50);
 
   // main settings layout, sidebar + main panel
@@ -568,6 +573,10 @@ SettingsWindow::SettingsWindow(QWidget *parent) : QFrame(parent) {
       border-radius: 30px;
     }
   )");
+}
+
+bool SettingsWindow::isCarrotPanelSelected() const {
+  return panel_widget->currentWidget() && panel_widget->currentWidget()->property("carrotPanel").toBool();
 }
 
 
@@ -667,21 +676,21 @@ CarrotPanel::CarrotPanel(QWidget* parent) : QWidget(parent) {
   cruiseToggles->addItem(new CValueControl("CruiseButtonMode", tr("Button: Cruise Button Mode"), tr("0:Normal,1:User1,2:User2"), 0, 2, 1));
   cruiseToggles->addItem(new CValueControl("CancelButtonMode", tr("Button: Cancel Button Mode"), tr("0:Long,1:Long+Lat"), 0, 1, 1));
   cruiseToggles->addItem(new CValueControl("LfaButtonMode", tr("Button: LFA Button Mode"), tr("0:Normal,1:Decel&Stop&LeadCarReady"), 0, 1, 1));
-  cruiseToggles->addItem(new CValueControl("CruiseSpeedUnitBasic", tr("Button: Cruise Speed Unit(Basic)"), "", 1, 20, 1));
-  cruiseToggles->addItem(new CValueControl("CruiseSpeedUnit", tr("Button: Cruise Speed Unit(Extra)"), "", 1, 20, 1));
+  cruiseToggles->addItem(new CValueControl("CruiseSpeedUnitBasic", tr("Button: Cruise Speed Unit(Basic)"), tr("Short RES/SET press increment in km/h (or the converted mph step)."), 1, 20, 1));
+  cruiseToggles->addItem(new CValueControl("CruiseSpeedUnit", tr("Button: Cruise Speed Unit(Extra)"), tr("CruiseButtonMode extra SET decrement and speed-table step in km/h."), 1, 20, 1));
   cruiseToggles->addItem(new CValueControl("CruiseEcoControl", tr("CRUISE: Eco control(4km/h)"), tr("Temporarily increasing the set speed to improve fuel efficiency."), 0, 10, 1));
   cruiseToggles->addItem(new CValueControl("AutoSpeedUptoRoadSpeedLimit", tr("CRUISE: Auto speed up (0%)"), tr("Auto speed up based on the lead car up to RoadSpeedLimit."), 0, 200, 10));
-  cruiseToggles->addItem(new CValueControl("TFollowGap1", tr("GAP1: Apply TFollow (110)x0.01s"), "", 70, 300, 5));
-  cruiseToggles->addItem(new CValueControl("TFollowGap2", tr("GAP2: Apply TFollow (120)x0.01s"), "", 70, 300, 5));
-  cruiseToggles->addItem(new CValueControl("TFollowGap3", tr("GAP3: Apply TFollow (160)x0.01s"), "", 70, 300, 5));
-  cruiseToggles->addItem(new CValueControl("TFollowGap4", tr("GAP4: Apply TFollow (180)x0.01s"), "", 70, 300, 5));
-  cruiseToggles->addItem(new CValueControl("DynamicTFollow", tr("Dynamic GAP control"), "", 0, 100, 5));
-  cruiseToggles->addItem(new CValueControl("DynamicTFollowLC", tr("Dynamic GAP control (LaneChange)"), "", 0, 100, 5));
+  cruiseToggles->addItem(new CValueControl("TFollowGap1", tr("GAP1: Apply TFollow (110)x0.01s"), tr("Base longitudinal time gap for personality/GAP 1, in 0.01 seconds."), 70, 300, 5));
+  cruiseToggles->addItem(new CValueControl("TFollowGap2", tr("GAP2: Apply TFollow (120)x0.01s"), tr("Base longitudinal time gap for personality/GAP 2, in 0.01 seconds."), 70, 300, 5));
+  cruiseToggles->addItem(new CValueControl("TFollowGap3", tr("GAP3: Apply TFollow (160)x0.01s"), tr("Base longitudinal time gap for personality/GAP 3, in 0.01 seconds."), 70, 300, 5));
+  cruiseToggles->addItem(new CValueControl("TFollowGap4", tr("GAP4: Apply TFollow (180)x0.01s"), tr("Base longitudinal time gap for personality/GAP 4, in 0.01 seconds."), 70, 300, 5));
+  cruiseToggles->addItem(new CValueControl("DynamicTFollow", tr("Dynamic GAP control"), tr("Scales the speed/acceleration-based dynamic addition to the base time gap."), 0, 100, 5));
+  cruiseToggles->addItem(new CValueControl("DynamicTFollowLC", tr("Dynamic GAP control (LaneChange)"), tr("Reduces the applied time gap during an active lane change by this percentage."), 0, 100, 5));
   cruiseToggles->addItem(new CValueControl("MyDrivingMode", tr("DRIVEMODE: Select"), tr("1:ECO,2:SAFE,3:NORMAL,4:HIGH"), 1, 4, 1));
   cruiseToggles->addItem(new CValueControl("MyDrivingModeAuto", tr("DRIVEMODE: Auto"), tr("NORMAL mode only"), 0, 1, 1));
   cruiseToggles->addItem(new CValueControl("TrafficLightDetectMode", tr("TrafficLight DetectMode"), tr("0:None, 1:Stopping only, 2: Stop & Go"), 0, 2, 1));
-  cruiseToggles->addItem(new CValueControl("AChangeCostStarting", tr("AChangeCostStarting"), "", 0, 200, 10));
-  cruiseToggles->addItem(new CValueControl("TrafficStopDistanceAdjust", tr("TrafficStopDistanceAdjust"), "", -600, 600, 50));
+  cruiseToggles->addItem(new CValueControl("AChangeCostStarting", tr("AChangeCostStarting"), tr("Longitudinal MPC acceleration-change cost used while starting from a stop."), 0, 200, 10));
+  cruiseToggles->addItem(new CValueControl("TrafficStopDistanceAdjust", tr("TrafficStopDistanceAdjust"), tr("Centimeter offset applied to model-based traffic-light stopping distance."), -600, 600, 50));
   //cruiseToggles->addItem(new CValueControl("CruiseSpeedMin", "CRUISE: Speed Lower limit(10)", "Cruise control MIN speed", 5, 50, 1));
   //cruiseToggles->addItem(new CValueControl("AutoResumeFromGas", "GAS CRUISE ON: Use", "Auto Cruise on when GAS pedal released, 60% Gas Cruise On automatically", 0, 3, 1));
   //cruiseToggles->addItem(new CValueControl("AutoResumeFromGasSpeed", "GAS CRUISE ON: Speed(30)", "Driving speed exceeds the set value, Cruise ON", 20, 140, 5));
@@ -694,7 +703,7 @@ CarrotPanel::CarrotPanel(QWidget* parent) : QWidget(parent) {
   latLongToggles = new ListWidget(this);
   latLongToggles->addItem(new CValueControl("UseLaneLineSpeed", tr("Laneline mode speed(0)"), tr("Laneline mode, lat_mpc control used"), 0, 200, 5));
   latLongToggles->addItem(new CValueControl("UseLaneLineCurveSpeed", tr("Laneline mode curve speed(0)"), tr("Laneline mode, high speed only"), 0, 200, 5));
-  latLongToggles->addItem(new CValueControl("AdjustLaneOffset", tr("AdjustLaneOffset(0)cm"), "", 0, 500, 5));
+  latLongToggles->addItem(new CValueControl("AdjustLaneOffset", tr("AdjustLaneOffset(0)cm"), tr("Maximum automatic lane-center offset adjustment, in centimeters."), 0, 500, 5));
   latLongToggles->addItem(new CValueControl("LaneChangeNeedTorque", tr("LaneChange need torque"), tr("-1:Disable lanechange, 0: no need torque, 1:need torque"), -1, 1, 1));
   latLongToggles->addItem(new CValueControl("LaneChangeDelay", tr("LaneChange delay"), tr("x0.1sec"), 0, 100, 5));
   latLongToggles->addItem(new CValueControl("LaneChangeBsd", tr("LaneChange Bsd"), tr("-1:ignore bsd, 0:BSD detect, 1: block steer torque"), -1, 1, 1));
@@ -704,20 +713,20 @@ CarrotPanel::CarrotPanel(QWidget* parent) : QWidget(parent) {
   latLongToggles->addItem(new CValueControl("PathOffset", tr("LAT: PathOffset"), tr("(-)left, (+)right"), -150, 150, 1));
   latLongToggles->addItem(new CValueControl("SteerActuatorDelay", tr("LAT:SteerActuatorDelay(30)"), tr("x0.01, 0:LiveDelay"), 0, 100, 1));
   latLongToggles->addItem(new CValueControl("LatSmoothSec", tr("LAT:LatSmoothSec(13)"), tr("x0.01"), 1, 30, 1));
-  latLongToggles->addItem(new CValueControl("LateralTorqueCustom", tr("LAT: TorqueCustom(0)"), "", 0, 2, 1));
-  latLongToggles->addItem(new CValueControl("LateralTorqueAccelFactor", tr("LAT: TorqueAccelFactor(2500)"), "", 1000, 6000, 10));
-  latLongToggles->addItem(new CValueControl("LateralTorqueFriction", tr("LAT: TorqueFriction(100)"), "", 0, 1000, 10));
-  latLongToggles->addItem(new CValueControl("CustomSteerMax", tr("LAT: CustomSteerMax(0)"), "", 0, 30000, 5));
-  latLongToggles->addItem(new CValueControl("CustomSteerDeltaUp", tr("LAT: CustomSteerDeltaUp(0)"), "", 0, 50, 1));
-  latLongToggles->addItem(new CValueControl("CustomSteerDeltaDown", tr("LAT: CustomSteerDeltaDown(0)"), "", 0, 50, 1));
-  latLongToggles->addItem(new CValueControl("LongTuningKpV", tr("LONG: P Gain(100)"), "", 0, 150, 5));
-  latLongToggles->addItem(new CValueControl("LongTuningKiV", tr("LONG: I Gain(0)"), "", 0, 2000, 5));
-  latLongToggles->addItem(new CValueControl("LongTuningKf", tr("LONG: FF Gain(100)"), "", 0, 200, 5));
-  latLongToggles->addItem(new CValueControl("LongActuatorDelay", tr("LONG: ActuatorDelay(20)"), "", 0, 200, 5));
+  latLongToggles->addItem(new CValueControl("LateralTorqueCustom", tr("LAT: TorqueCustom(0)"), tr("Selects stock live torque parameters or the custom acceleration-factor/friction values below."), 0, 2, 1));
+  latLongToggles->addItem(new CValueControl("LateralTorqueAccelFactor", tr("LAT: TorqueAccelFactor(2500)"), tr("Custom torque-controller lateral acceleration factor, scaled by 0.001."), 1000, 6000, 10));
+  latLongToggles->addItem(new CValueControl("LateralTorqueFriction", tr("LAT: TorqueFriction(100)"), tr("Custom torque-controller friction compensation, scaled by 0.001."), 0, 1000, 10));
+  latLongToggles->addItem(new CValueControl("CustomSteerMax", tr("LAT: CustomSteerMax(0)"), tr("Overrides the Hyundai steering command maximum when nonzero."), 0, 30000, 5));
+  latLongToggles->addItem(new CValueControl("CustomSteerDeltaUp", tr("LAT: CustomSteerDeltaUp(0)"), tr("Overrides the Hyundai steering command ramp-up limit when nonzero."), 0, 50, 1));
+  latLongToggles->addItem(new CValueControl("CustomSteerDeltaDown", tr("LAT: CustomSteerDeltaDown(0)"), tr("Overrides the Hyundai steering command ramp-down limit when nonzero."), 0, 50, 1));
+  latLongToggles->addItem(new CValueControl("LongTuningKpV", tr("LONG: P Gain(100)"), tr("Longitudinal PID proportional gain, scaled by 0.01."), 0, 150, 5));
+  latLongToggles->addItem(new CValueControl("LongTuningKiV", tr("LONG: I Gain(0)"), tr("Longitudinal PID integral gain, scaled by 0.001."), 0, 2000, 5));
+  latLongToggles->addItem(new CValueControl("LongTuningKf", tr("LONG: FF Gain(100)"), tr("Longitudinal PID feed-forward gain, scaled by 0.01."), 0, 200, 5));
+  latLongToggles->addItem(new CValueControl("LongActuatorDelay", tr("LONG: ActuatorDelay(20)"), tr("Longitudinal actuator delay used by planning/control, scaled by 0.01 seconds."), 0, 200, 5));
   latLongToggles->addItem(new CValueControl("VEgoStopping", tr("LONG: VEgoStopping(50)"), tr("Stopping factor"), 1, 100, 5));
-  latLongToggles->addItem(new CValueControl("RadarReactionFactor", tr("LONG: Radar reaction factor(100)"), "", 0, 200, 10));
-  latLongToggles->addItem(new CValueControl("StoppingAccel", tr("LONG: StoppingStartAccelx0.01(-40)"), "", -100, 0, 5));
-  latLongToggles->addItem(new CValueControl("StopDistanceCarrot", tr("LONG: StopDistance (600)cm"), "", 300, 1000, 10));
+  latLongToggles->addItem(new CValueControl("RadarReactionFactor", tr("LONG: Radar reaction factor(100)"), tr("Scales lead-vehicle radar reaction in longitudinal planning, in percent."), 0, 200, 10));
+  latLongToggles->addItem(new CValueControl("StoppingAccel", tr("LONG: StoppingStartAccelx0.01(-40)"), tr("Acceleration threshold that starts the stopping-state profile, in 0.01 m/s²."), -100, 0, 5));
+  latLongToggles->addItem(new CValueControl("StopDistanceCarrot", tr("LONG: StopDistance (600)cm"), tr("Base desired stopping distance used by Carrot longitudinal planning, in centimeters."), 300, 1000, 10));
   latLongToggles->addItem(new CValueControl("JLeadFactor3", tr("LONG: Jerk Lead Factor (0)"), tr("x0.01"), 0, 100, 5));
   latLongToggles->addItem(new CValueControl("CruiseMaxVals0", tr("ACCEL:0km/h(160)"), tr("Acceleration needed at specified speed.(x0.01m/s^2)"), 1, 250, 5));
   latLongToggles->addItem(new CValueControl("CruiseMaxVals1", tr("ACCEL:10km/h(160)"), tr("Acceleration needed at specified speed.(x0.01m/s^2)"), 1, 250, 5));
@@ -736,16 +745,16 @@ CarrotPanel::CarrotPanel(QWidget* parent) : QWidget(parent) {
   //latLongToggles->addItem(new CValueControl("CruiseMinVals", "DECEL:(120)", "Sets the deceleration rate.(x0.01m/s^2)", 50, 250, 5));
 
   dispToggles = new ListWidget(this);
-  dispToggles->addItem(new CValueControl("ShowDebugUI", tr("Debug Info"), "", 0, 2, 1));
-  dispToggles->addItem(new CValueControl("ShowTpms", tr("Tpms Info"), "", 0, 3, 1));
+  dispToggles->addItem(new CValueControl("ShowDebugUI", tr("Debug Info"), tr("0: hidden, 1: standard debug information, 2: expanded debug information."), 0, 2, 1));
+  dispToggles->addItem(new CValueControl("ShowTpms", tr("Tpms Info"), tr("0: hidden, 1: upper TPMS, 2: lower TPMS, 3: both."), 0, 3, 1));
   dispToggles->addItem(new CValueControl("ShowDateTime", tr("Time Info"), tr("0:None,1:Time/Date,2:Time,3:Date"), 0, 3, 1));
   dispToggles->addItem(new CValueControl("ShowPathEnd", tr("Path End"), tr("0:None,1:Display"), 0, 1, 1));
   dispToggles->addItem(new CValueControl("ShowDeviceState", tr("Device State"), tr("0:None,1:Display"), 0, 1, 1));
   dispToggles->addItem(new CValueControl("ShowLaneInfo", tr("Lane Info"), tr("-1:None, 0:Path, 1:Path+Lane, 2: Path+Lane+RoadEdge"), -1, 2, 1));
   dispToggles->addItem(new CValueControl("ShowRadarInfo", tr("Radar Info"), tr("0:None,1:Display,2:RelPos,3:Stopped Car"), 0, 3, 1));
   dispToggles->addItem(new CValueControl("ShowRouteInfo", tr("Route Info"), tr("0:None,1:Display"), 0, 1, 1));
-  dispToggles->addItem(new CValueControl("ShowPlotMode", tr("Debug plot"), "", 0, 10, 1));
-  dispToggles->addItem(new CValueControl("ShowCustomBrightness", tr("Brightness ratio"), "", 0, 100, 10));
+  dispToggles->addItem(new CValueControl("ShowPlotMode", tr("Debug plot"), tr("Selects the on-road diagnostic plot data set; 0 hides the plot."), 0, 10, 1));
+  dispToggles->addItem(new CValueControl("ShowCustomBrightness", tr("Brightness ratio"), tr("Scales calculated on-road display brightness; 0 keeps the calculated value."), 0, 100, 10));
   //dispToggles->addItem(new CValueControl("ShowHudMode", "Display Mode", "0:Frog,1:APilot,2:Bottom,3:Top,4:Left,5:Left-Bottom", 0, 5, 1));
   //dispToggles->addItem(new CValueControl("ShowSteerRotate", "Handle rotate", "0:None,1:Rotate", 0, 1, 1));
   //dispToggles->addItem(new CValueControl("ShowAccelRpm", "Accel meter", "0:None,1:Display,1:Accel+RPM", 0, 2, 1));
@@ -763,7 +772,7 @@ CarrotPanel::CarrotPanel(QWidget* parent) : QWidget(parent) {
   pathToggles->addItem(new CValueControl("ShowPathColor", tr("Path Color: Laneless"), tr("(+10:Stroke)0:Red,1:Orange,2:Yellow,3:Green,4:Blue,5:Indigo,6:Violet,7:Brown,8:White,9:Black"), 0, 19, 1));
   pathToggles->addItem(new CValueControl("ShowPathModeLane", tr("Path Mode: LaneMode"), tr("0:Normal,1,2:Rec,3,4:^^,5,6:Rec,7,8:^^,9,10,11,12:Smooth^^"), 0, 15, 1));
   pathToggles->addItem(new CValueControl("ShowPathColorLane", tr("Path Color: LaneMode"), tr("(+10:Stroke)0:Red,1:Orange,2:Yellow,3:Green,4:Blue,5:Indigo,6:Violet,7:Brown,8:White,9:Black"), 0, 19, 1));
-  pathToggles->addItem(new CValueControl("ShowPathWidth", tr("Path Width ratio(100%)"), "", 10, 200, 10));
+  pathToggles->addItem(new CValueControl("ShowPathWidth", tr("Path Width ratio(100%)"), tr("Scales the rendered driving-path width, in percent."), 10, 200, 10));
 
   startToggles = new ListWidget(this);
   QString selected = QString::fromStdString(Params().get("CarSelected3"));
@@ -833,22 +842,24 @@ CarrotPanel::CarrotPanel(QWidget* parent) : QWidget(parent) {
   startToggles->addItem(new CValueControl("AutoEngage", tr("Auto Engage control on start"), tr("1:SteerEnable, 2:Steer/Cruise Engage"), 0, 2, 1));
   startToggles->addItem(new CValueControl("AutoGasTokSpeed", tr("Auto AccelTok speed"), tr("Gas(Accel)Tok enable speed"), 0, 200, 5));
   startToggles->addItem(new CValueControl("SpeedFromPCM", tr("Read Cruise Speed from PCM"), tr("Toyota must set to 1, Honda 3"), 0, 3, 1));
-  startToggles->addItem(new CValueControl("SoundVolumeAdjust", tr("Sound Volume(100%)"), "", 5, 200, 5));
-  startToggles->addItem(new CValueControl("SoundVolumeAdjustEngage", tr("Sound Volume, Engage(10%)"), "", 5, 200, 5));
-  startToggles->addItem(new CValueControl("MaxTimeOffroadMin", tr("Power off time (min)"), "", 1, 600, 10));
+  startToggles->addItem(new CValueControl("SoundVolumeAdjust", tr("Sound Volume(100%)"), tr("Scales normal alert sound volume, in percent."), 5, 200, 5));
+  startToggles->addItem(new CValueControl("SoundVolumeAdjustEngage", tr("Sound Volume, Engage(10%)"), tr("Scales engage/disengage alert sound volume, in percent."), 5, 200, 5));
+  startToggles->addItem(new CValueControl("MaxTimeOffroadMin", tr("Power off time (min)"), tr("Maximum ignition-off time before automatic shutdown, in minutes."), 1, 600, 10));
   startToggles->addItem(new CValueControl("EnableConnect", tr("EnableConnect"), tr("Your device may be banned by Comma"), 0, 2, 1));
-  startToggles->addItem(new CValueControl("MapboxStyle", tr("Mapbox Style(0)"), "", 0, 2, 1));
+  startToggles->addItem(new CValueControl("MapboxStyle", tr("Mapbox Style(0)"), tr("Selects the online Mapbox renderer style; it does not change offline OSM data."), 0, 2, 1));
+  startToggles->addItem(new CValueControl("MapEnable", tr("MAP 데이터 사용"), tr("0: off (no map process/download/UI), 1: use offline South Korea OSM road names."), 0, 1, 1));
+  startToggles->addItem(new CValueControl("OsmDbUpdatesCheck", tr("MAP 데이터 갱신"), tr("Set to 1 to replace the local South Korea OSM database once; it returns to 0 after the request."), 0, 1, 1));
   startToggles->addItem(new CValueControl("RecordRoadCam", tr("Record Road camera(0)"), tr("1:RoadCam, 2:RoadCam+WideRoadCam"), 0, 2, 1));
   startToggles->addItem(new CValueControl("HDPuse", tr("Use HDP(CCNC)(0)"), tr("1:While Using APN, 2:Always"), 0, 2, 1));
   startToggles->addItem(new CValueControl("NNFF", tr("NNFF"), tr("Twilsonco's NNFF(Reboot required)"), 0, 1, 1));
   startToggles->addItem(new CValueControl("NNFFLite", tr("NNFFLite"), tr("Twilsonco's NNFF-Lite(Reboot required)"), 0, 1, 1));
-  startToggles->addItem(new CValueControl("AutoGasSyncSpeed", tr("Auto update Cruise speed"), "", 0, 1, 1));
-  startToggles->addItem(new CValueControl("DisableMinSteerSpeed", tr("Disable Min.SteerSpeed"), "", 0, 1, 1));
-  startToggles->addItem(new CValueControl("DisableDM", tr("Disable DM"), "", 0, 2, 1));
-  startToggles->addItem(new CValueControl("HotspotOnBoot", tr("Hotspot enabled on boot"), "", 0, 1, 1));
-  startToggles->addItem(new CValueControl("SoftwareMenu", tr("Enable Software Menu"), "", 0, 1, 1));
-  startToggles->addItem(new CValueControl("IsLdwsCar", tr("IsLdwsCar"), "", 0, 1, 1));
-  startToggles->addItem(new CValueControl("HardwareC3xLite", tr("Hardware is C3x Lite"), "", 0, 1, 1));
+  startToggles->addItem(new CValueControl("AutoGasSyncSpeed", tr("Auto update Cruise speed"), tr("When enabled, holding the accelerator can raise the saved cruise speed to vehicle speed while cruise is active."), 0, 1, 1));
+  startToggles->addItem(new CValueControl("DisableMinSteerSpeed", tr("Disable Min.SteerSpeed"), tr("Ignores the vehicle interface minimum steering-speed restriction where supported."), 0, 1, 1));
+  startToggles->addItem(new CValueControl("DisableDM", tr("Disable DM"), tr("0: driver monitoring enabled, 1: disabled, 2: disabled (camera streaming is unavailable in this video-off build)."), 0, 2, 1));
+  startToggles->addItem(new CValueControl("HotspotOnBoot", tr("Hotspot enabled on boot"), tr("Starts the device Wi-Fi hotspot during boot when enabled."), 0, 1, 1));
+  startToggles->addItem(new CValueControl("SoftwareMenu", tr("Enable Software Menu"), tr("Shows the Software settings panel and permits the updater process while off-road."), 0, 1, 1));
+  startToggles->addItem(new CValueControl("IsLdwsCar", tr("IsLdwsCar"), tr("Selects the Hyundai LDWS-compatible lateral message behavior for supported vehicles."), 0, 1, 1));
+  startToggles->addItem(new CValueControl("HardwareC3xLite", tr("Hardware is C3x Lite"), tr("Applies C3X Lite process and hardware behavior; requires restart."), 0, 1, 1));
   startToggles->addItem(new CValueControl("ShareData", tr("Share Data"), tr("0:None, 1:TCP JSON Data(Reboot required)"), 0, 1, 1));
   //startToggles->addItem(new CValueControl("CarrotCountDownSpeed", "NaviCountDown Speed(10)", "", 0, 200, 5));
   //startToggles->addItem(new ParamControl("NoLogging", "Disable Logger", "", this));
@@ -857,24 +868,24 @@ CarrotPanel::CarrotPanel(QWidget* parent) : QWidget(parent) {
 
   speedToggles = new ListWidget(this);
   speedToggles->addItem(new CValueControl("AutoCurveSpeedLowerLimit", tr("CURVE: Lower limit speed(30)"), tr("When you approach a curve, reduce your speed. Minimum speed"), 30, 200, 5));
-  speedToggles->addItem(new CValueControl("AutoCurveSpeedFactor", tr("CURVE: Auto Control ratio(100%)"), "", 50, 300, 1));
+  speedToggles->addItem(new CValueControl("AutoCurveSpeedFactor", tr("CURVE: Auto Control ratio(100%)"), tr("Scales model-curvature automatic curve speed, in percent."), 50, 300, 1));
   speedToggles->addItem(new CValueControl("AutoRoadSpeedLimitOffset", tr("RoadSpeedLimitOffset(-1)"), tr("-1:NotUsed,RoadLimitSpeed+Offset"), -1, 100, 1));
-  speedToggles->addItem(new CValueControl("AutoRoadSpeedAdjust", tr("Auto Roadlimit Speed adjust (50%)"), "", -1, 100, 5));
+  speedToggles->addItem(new CValueControl("AutoRoadSpeedAdjust", tr("Auto Roadlimit Speed adjust (50%)"), tr("Blends the saved cruise speed toward a newly lower road limit; -1 applies the new limit directly."), -1, 100, 5));
   speedToggles->addItem(new CValueControl("AutoNaviSpeedCtrlEnd", tr("SpeedCamDecelEnd(6s)"), tr("Sets the deceleration completion point. A larger value completes deceleration farther away from the camera."), 3, 20, 1));
   speedToggles->addItem(new CValueControl("AutoNaviSpeedCtrlMode", tr("NaviSpeedControlMode(2)"), tr("0:No slowdown, 1: speed camera, 2: + accident prevention bump, 3: + mobile camera"), 0, 3, 1));
   speedToggles->addItem(new CValueControl("AutoNaviSpeedDecelRate", tr("SpeedCamDecelRatex0.01m/s^2(80)"), tr("Lower number, slows down from a greater distance"), 10, 200, 10));
-  speedToggles->addItem(new CValueControl("AutoNaviSpeedSafetyFactor", tr("SpeedCamSafetyFactor(105%)"), "", 80, 120, 1));
-  speedToggles->addItem(new CValueControl("AutoNaviSpeedBumpTime", tr("SpeedBumpTimeDistance(1s)"), "", 1, 50, 1));
-  speedToggles->addItem(new CValueControl("AutoNaviSpeedBumpSpeed", tr("SpeedBumpSpeed(35Km/h)"), "", 10, 100, 5));
+  speedToggles->addItem(new CValueControl("AutoNaviSpeedSafetyFactor", tr("SpeedCamSafetyFactor(105%)"), tr("Multiplies navigation camera speed limits before control, in percent."), 80, 120, 1));
+  speedToggles->addItem(new CValueControl("AutoNaviSpeedBumpTime", tr("SpeedBumpTimeDistance(1s)"), tr("Time-distance horizon used to finish speed-bump deceleration."), 1, 50, 1));
+  speedToggles->addItem(new CValueControl("AutoNaviSpeedBumpSpeed", tr("SpeedBumpSpeed(35Km/h)"), tr("Target speed used for navigation speed-bump events, in km/h."), 10, 100, 5));
   speedToggles->addItem(new CValueControl("AutoNaviCountDownMode", tr("NaviCountDown mode(2)"), tr("0: off, 1:tbt+camera, 2:tbt+camera+bump"), 0, 2, 1));
   speedToggles->addItem(new CValueControl("TurnSpeedControlMode", tr("Turn Speed control mode(1)"), tr("0: off, 1:vision, 2:vision+route, 3: route"), 0, 3, 1));
   speedToggles->addItem(new CValueControl("CarrotSmartSpeedControl", tr("Smart Speed Control(0)"), tr("0: off, 1:accel, 2:decel, 3: all"), 0, 3, 1));
-  speedToggles->addItem(new CValueControl("MapTurnSpeedFactor", tr("Map TurnSpeed Factor(100)"), "", 50, 300, 5));
-  speedToggles->addItem(new CValueControl("ModelTurnSpeedFactor", tr("Model TurnSpeed Factor(0)"), "", 0, 80, 10));
+  speedToggles->addItem(new CValueControl("MapTurnSpeedFactor", tr("Map TurnSpeed Factor(100)"), tr("Scales route/map turn speed targets, in percent."), 50, 300, 5));
+  speedToggles->addItem(new CValueControl("ModelTurnSpeedFactor", tr("Model TurnSpeed Factor(0)"), tr("Adds model-predicted turn-speed influence; 0 disables it."), 0, 80, 10));
   speedToggles->addItem(new CValueControl("AutoTurnControl", tr("ATC: Auto turn control(0)"), tr("0:None, 1: lane change, 2: lane change + speed, 3: speed"), 0, 3, 1));
   speedToggles->addItem(new CValueControl("AutoTurnControlSpeedTurn", tr("ATC: Turn Speed (20)"), tr("0:None, turn speed"), 0, 100, 5));
   speedToggles->addItem(new CValueControl("AutoTurnControlTurnEnd", tr("ATC: Turn CtrlDistTime (6)"), tr("dist=speed*time"), 0, 30, 1));
-  speedToggles->addItem(new CValueControl("AutoTurnMapChange", tr("ATC Auto Map Change(0)"), "", 0, 1, 1));
+  speedToggles->addItem(new CValueControl("AutoTurnMapChange", tr("ATC Auto Map Change(0)"), tr("Allows Auto Turn Control to switch the on-road map display during a turn."), 0, 1, 1));
 
   toggles_layout->addWidget(cruiseToggles);
   toggles_layout->addWidget(latLongToggles);

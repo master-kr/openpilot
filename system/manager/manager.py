@@ -2,23 +2,52 @@
 import datetime
 import os
 import signal
+import subprocess
 import sys
+import threading
 import time
 import traceback
 
 from cereal import log
 import cereal.messaging as messaging
 import openpilot.system.sentry as sentry
+from openpilot.common.basedir import BASEDIR
 from openpilot.common.params import Params, ParamKeyFlag
 from openpilot.common.text_window import TextWindow
 from openpilot.system.hardware import HARDWARE
 from openpilot.system.manager.helpers import unblock_stdout, write_onroad_params, save_bootlog
 from openpilot.system.manager.process import ensure_running
 from openpilot.system.manager.process_config import managed_processes
-from openpilot.system.athena.registration import register, UNREGISTERED_DONGLE_ID
+from openpilot.system.athena.registration import UNREGISTERED_DONGLE_ID
 from openpilot.common.swaglog import cloudlog, add_file_handler
 from openpilot.system.version import get_build_metadata, terms_version, training_version
 from openpilot.system.hardware.hw import Paths
+from openpilot.selfdrive.mapd_manager import ensure_map_directories
+
+
+SUPPORTED_CAR_LISTS = {
+  "SupportedCars": "hyundai",
+  "SupportedCars_gm": "gm",
+  "SupportedCars_toyota": "toyota",
+  "SupportedCars_mazda": "mazda",
+  "SupportedCars_honda": "honda",
+  "SupportedCars_ford": "ford",
+  "SupportedCars_tesla": "tesla",
+  "SupportedCars_volkswagen": "volkswagen",
+}
+
+
+def generate_missing_supported_car_lists(params: Params) -> None:
+  """Populate cached selector lists outside the boot critical path."""
+  for key, brand in SUPPORTED_CAR_LISTS.items():
+    if params.get(key):
+      continue
+    values_py = os.path.join(BASEDIR, "opendbc", "car", brand, "values.py")
+    try:
+      result = subprocess.run([sys.executable, values_py], check=True, capture_output=True, text=True)
+      params.put(key, result.stdout)
+    except Exception:
+      cloudlog.exception(f"failed to build {key}")
 
 def set_default_params():
   params = Params()
@@ -50,6 +79,9 @@ def manager_init() -> None:
   if params.get_bool("RecordFrontLock"):
     params.put_bool("RecordFront", True)
 
+  if params.get_bool("MapEnable"):
+    ensure_map_directories()
+
   # set unset params to their default value
   for k in params.all_keys():
     default_value = params.get_default_value(k)
@@ -78,11 +110,10 @@ def manager_init() -> None:
   params.put("HardwareSerial", serial)
 
   # set dongle id
-  reg_res = register(show_spinner=True)
-  if reg_res:
-    dongle_id = reg_res
-  else:
-    raise Exception(f"Registration failed for device {serial}")
+  # This build is intentionally offline and does not run Athena/Connect. Avoid
+  # blocking startup on pilotauth when a device has never been registered.
+  dongle_id = params.get("DongleId") or UNREGISTERED_DONGLE_ID
+  params.put("DongleId", dongle_id)
   os.environ['DONGLE_ID'] = dongle_id  # Needed for swaglog
   os.environ['GIT_ORIGIN'] = build_metadata.openpilot.git_normalized_origin # Needed for swaglog
   os.environ['GIT_BRANCH'] = build_metadata.channel # Needed for swaglog
@@ -104,6 +135,9 @@ def manager_init() -> None:
   # preimport all processes
   for p in managed_processes.values():
     p.prepare()
+
+  threading.Thread(target=generate_missing_supported_car_lists, args=(params,), daemon=True,
+                   name="supported-cars-cache").start()
 
 
 def manager_cleanup() -> None:
@@ -206,15 +240,6 @@ def manager_thread() -> None:
 
 def main() -> None:
   manager_init()
-  print(f"python ../../opendbc/car/hyundai/values.py > {Params().get_param_path()}/SupportedCars")
-  os.system(f"python ../../opendbc/car/hyundai/values.py > {Params().get_param_path()}/SupportedCars")
-  os.system(f"python ../../opendbc/car/gm/values.py > {Params().get_param_path()}/SupportedCars_gm")
-  os.system(f"python ../../opendbc/car/toyota/values.py > {Params().get_param_path()}/SupportedCars_toyota")
-  os.system(f"python ../../opendbc/car/mazda/values.py > {Params().get_param_path()}/SupportedCars_mazda")
-  os.system(f"python ../../opendbc/car/honda/values.py > {Params().get_param_path()}/SupportedCars_honda")
-  os.system(f"python ../../opendbc/car/ford/values.py > {Params().get_param_path()}/SupportedCars_ford")
-  os.system(f"python ../../opendbc/car/tesla/values.py > {Params().get_param_path()}/SupportedCars_tesla")
-  os.system(f"python ../../opendbc/car/volkswagen/values.py > {Params().get_param_path()}/SupportedCars_volkswagen")
 
   if os.getenv("PREPAREONLY") is not None:
     return

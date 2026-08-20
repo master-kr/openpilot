@@ -320,6 +320,11 @@ class VCruiseCarrot:
     #self.events = []
     self.v_ego_kph_set = int(CS.vEgoCluster * CV.MS_TO_KPH + 0.5)
     self._activate_cruise = 0
+    if any(b.type == ButtonType.cancel and b.pressed for b in CS.buttonEvents):
+      # Freeze the saved set speed on the physical press, before gas/brake state
+      # can synchronize it. The release path below keeps the latch set.
+      self._cruise_cancel_state = True
+      self._pause_auto_speed_up = True
     self._prepare_brake_gas(CS, CC)
     if CC.enabled:
       self._cruise_ready = False
@@ -341,10 +346,10 @@ class VCruiseCarrot:
         self.v_cruise_kph = np.clip(v_cruise_kph, self._cruise_speed_min, self._cruise_speed_max)
         self.v_cruise_cluster_kph = self.v_cruise_kph
       else:
-        if self.speed_from_pcm == 1:
+        if self.speed_from_pcm == 1 and not self._cruise_cancel_state:
           self.v_cruise_kph = CS.cruiseState.speed * CV.MS_TO_KPH
           self.v_cruise_cluster_kph = CS.cruiseState.speedCluster * CV.MS_TO_KPH
-        else:
+        elif self.speed_from_pcm != 1:
           self.v_cruise_kph = np.clip(v_cruise_kph, 30, self._cruise_speed_max)
           self.v_cruise_cluster_kph = self.v_cruise_kph
     else:
@@ -562,6 +567,7 @@ class VCruiseCarrot:
         print("lfaButton")
       elif button_type == ButtonType.cancel:
         self._paddle_decel_active = False
+        self._pause_auto_speed_up = True
         if self._cancel_button_mode in [1]:
           self._lat_enabled = False
           self._add_log("Lateral " + "enabled" if self._lat_enabled else "disabled")
@@ -585,6 +591,7 @@ class VCruiseCarrot:
         self._cruise_cancel_state = True
         self._lat_enabled = False
         self._paddle_decel_active = False
+        self._pause_auto_speed_up = True
         #self.params.put_bool_nonblocking("ExperimentalMode", not self.params.get_bool("ExperimentalMode"))
         self._add_log("Lateral " + "enabled" if self._lat_enabled else "disabled")
 
@@ -693,6 +700,12 @@ class VCruiseCarrot:
       return False, d_final
 
   def _update_cruise_state(self, CS, CC, v_cruise_kph):
+    # With stock-style cruise and AutoCruiseControl disabled, CANCEL freezes the
+    # saved set speed. Manual accelerator/brake driving must not rewrite it;
+    # RES/SET clears _cruise_cancel_state before reaching this function.
+    if self._cruise_cancel_state and self.autoCruiseControl == 0:
+      return v_cruise_kph
+
     if not CC.enabled:
       #self._pause_auto_speed_up = False
       if self._brake_pressed_count == -1 and self._soft_hold_active > 0:
