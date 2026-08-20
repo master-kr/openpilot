@@ -251,7 +251,10 @@ class Updater:
   def update_ready(self) -> bool:
     consistent_file = Path(os.path.join(FINALIZED, ".overlay_consistent"))
     if consistent_file.is_file():
-      hash_mismatch = self.get_commit_hash(BASEDIR) != self.branches[self.target_branch]
+      remote_commit = self.branches.get(self.target_branch)
+      if remote_commit is None:
+        return False
+      hash_mismatch = self.get_commit_hash(BASEDIR) != remote_commit
       branch_mismatch = self.get_branch(BASEDIR) != self.target_branch
       on_target_branch = self.get_branch(FINALIZED) == self.target_branch
       return ((hash_mismatch or branch_mismatch) and on_target_branch)
@@ -260,7 +263,10 @@ class Updater:
   @property
   def update_available(self) -> bool:
     if os.path.isdir(OVERLAY_MERGED) and len(self.branches) > 0:
-      hash_mismatch = self.get_commit_hash(OVERLAY_MERGED) != self.branches[self.target_branch]
+      remote_commit = self.branches.get(self.target_branch)
+      if remote_commit is None:
+        return False
+      hash_mismatch = self.get_commit_hash(OVERLAY_MERGED) != remote_commit
       branch_mismatch = self.get_branch(OVERLAY_MERGED) != self.target_branch
       return hash_mismatch or branch_mismatch
     return False
@@ -363,6 +369,8 @@ class Updater:
     cur_branch = self.get_branch(OVERLAY_MERGED)
     cur_commit = self.get_commit_hash(OVERLAY_MERGED)
     new_branch = self.target_branch
+    if new_branch not in self.branches:
+      raise RuntimeError(f"target branch does not exist on the remote: {new_branch}")
     new_commit = self.branches[new_branch]
     if (cur_branch, cur_commit) != (new_branch, new_commit):
       cloudlog.info(f"update available, {cur_branch} ({str(cur_commit)[:7]}) -> {new_branch} ({str(new_commit)[:7]})")
@@ -411,6 +419,11 @@ def main() -> None:
 
   if params.get_bool("DisableUpdates"):
     cloudlog.warning("updates are disabled by the DisableUpdates param")
+    if params.get_int("UpdaterUserRequest") in (UserRequest.CHECK, UserRequest.FETCH):
+      params.put("UpdaterState", "idle")
+      params.put("UpdateFailedCount", 1)
+      params.put("LastUpdateException", "updates are disabled in settings")
+      params.put_int("UpdaterUserRequest", UserRequest.NONE)
     exit(0)
 
   with open(LOCK_FILE, 'w') as ov_lock_fd:
@@ -443,7 +456,7 @@ def main() -> None:
     set_consistent_flag(False)
 
     # set initial state
-    params.put("UpdaterState", "idle")
+    params.put("UpdaterState", "starting updater..." if wait_helper.user_request != UserRequest.NONE else "idle")
 
     # Run the update loop
     first_run = True
@@ -453,12 +466,17 @@ def main() -> None:
       # Attempt an update
       exception = None
       try:
+        if wait_helper.user_request != UserRequest.NONE:
+          params.put("UpdaterState", "preparing update...")
+
         # TODO: reuse overlay from previous updated instance if it looks clean
         init_overlay()
 
         # ensure we have some params written soon after startup
         updater.set_params(False, update_failed_count, exception)
 
+        if not system_time_valid() and wait_helper.user_request != UserRequest.NONE:
+          raise RuntimeError("system time is invalid; wait for GPS time synchronization")
         if not system_time_valid() or (first_run and wait_helper.user_request == UserRequest.NONE):
           first_run = False
           wait_helper.sleep(60)
@@ -484,6 +502,7 @@ def main() -> None:
           write_time_to_param(params, "UpdaterLastFetchTime")
         update_failed_count = 0
       except subprocess.CalledProcessError as e:
+        update_failed_count = max(update_failed_count, 1)
         cloudlog.event(
           "update process failed",
           cmd=e.cmd,
@@ -493,6 +512,7 @@ def main() -> None:
         exception = f"command failed: {e.cmd}\n{e.output}"
         OVERLAY_INIT.unlink(missing_ok=True)
       except Exception as e:
+        update_failed_count = max(update_failed_count, 1)
         cloudlog.exception("uncaught updated exception, shouldn't happen")
         exception = str(e)
         OVERLAY_INIT.unlink(missing_ok=True)

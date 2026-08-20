@@ -379,7 +379,7 @@
     </message>
     <message>
         <source>LaneChange delay</source>
-        <translation>차선 변경을 시작하기 전 대기시간입니다.</translation>
+        <translation>LaneChange delay</translation>
     </message>
     <message>
         <source>x0.1sec</source>
@@ -802,7 +802,11 @@
     </message>
     <message>
         <source>Git Pull &amp; Reboot</source>
-        <translation type="unfinished"></translation>
+        <translation>현재 브랜치 업데이트 및 재부팅</translation>
+    </message>
+    <message>
+        <source>Git pull &amp; Reboot?</source>
+        <translation>현재 브랜치를 업데이트한 뒤 재부팅하시겠습니까?</translation>
     </message>
     <message>
         <source>Yes</source>
@@ -810,11 +814,11 @@
     </message>
     <message>
         <source>Failed to start update process.</source>
-        <translation type="unfinished"></translation>
+        <translation>업데이트 프로세스를 시작하지 못했습니다.</translation>
     </message>
     <message>
         <source>Update process started. Device will reboot if updates are applied.</source>
-        <translation type="unfinished"></translation>
+        <translation>업데이트를 시작했습니다. 새 변경 사항이 적용되면 장치가 재부팅됩니다.</translation>
     </message>
     <message>
         <source>Set default</source>
@@ -1623,6 +1627,38 @@ This may take up to a minute.</source>
     <message>
         <source>Select a branch</source>
         <translation>브랜치 선택</translation>
+    </message>
+    <message>
+        <source>loading branches...</source>
+        <translation>브랜치 목록 불러오는 중...</translation>
+    </message>
+    <message>
+        <source>Unable to load the branch list. Check the network connection.</source>
+        <translation>브랜치 목록을 불러오지 못했습니다. 네트워크 연결을 확인하세요.</translation>
+    </message>
+    <message>
+        <source>starting updater...</source>
+        <translation>업데이터 시작 중...</translation>
+    </message>
+    <message>
+        <source>preparing update...</source>
+        <translation>업데이트 준비 중...</translation>
+    </message>
+    <message>
+        <source>checking...</source>
+        <translation>업데이트 확인 중...</translation>
+    </message>
+    <message>
+        <source>downloading...</source>
+        <translation>업데이트 다운로드 중...</translation>
+    </message>
+    <message>
+        <source>finalizing update...</source>
+        <translation>업데이트 마무리 중...</translation>
+    </message>
+    <message>
+        <source>update failed: %1</source>
+        <translation>업데이트 실패: %1</translation>
     </message>
     <message>
         <source>UNINSTALL</source>

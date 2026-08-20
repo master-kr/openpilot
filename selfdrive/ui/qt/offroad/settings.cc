@@ -220,17 +220,18 @@ DevicePanel::DevicePanel(SettingsWindow *parent) : ListWidget(parent) {
   QObject::connect(init_btn, &QPushButton::clicked, [&]() {
     if (ConfirmationDialog::confirm(tr("Git pull & Reboot?"), tr("Yes"), this)) {
       QString pullscript = "cd /data/openpilot && "
-        "git fetch origin && "
-        "LOCAL=$(git rev-parse HEAD) && "
         "BRANCH=$(git branch --show-current) && "
-        "REMOTE=$(git rev-parse origin/$BRANCH) && "
-        "if [ $LOCAL != $REMOTE ]; then "
+        "test -n \"$BRANCH\" && "
+        "git fetch origin \"$BRANCH\" && "
+        "LOCAL=$(git rev-parse HEAD) && "
+        "REMOTE=$(git rev-parse FETCH_HEAD) && "
+        "if [ \"$LOCAL\" != \"$REMOTE\" ]; then "
         "echo 'Local is behind. Pulling updates...' && "
-        "git pull --ff-only && "
+        "git merge --ff-only FETCH_HEAD && "
         "sudo reboot; "
         "else "
         "echo 'Already up to date.'; "
-        "fi'";
+        "fi";
 
       bool success = QProcess::startDetached("/bin/sh", QStringList() << "-c" << pullscript);
 

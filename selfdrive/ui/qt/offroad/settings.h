@@ -8,6 +8,7 @@
 #include <QLabel>
 #include <QPushButton>
 #include <QStackedWidget>
+#include <QStringList>
 #include <QTimer>
 #include <QWidget>
 
@@ -91,6 +92,9 @@ private:
   void showEvent(QShowEvent *event) override;
   void updateLabels();
   void requestUpdate(bool fetch);
+  QStringList availableBranches(const QString &remote_output = QString());
+  void refreshBranches();
+  void showBranchSelection(QStringList branches);
 
   bool is_onroad = false;
 
