@@ -1,14 +1,13 @@
 from collections import deque
 import copy
 import math
-import numpy as np
 import ast
 
 from opendbc.can import CANDefine, CANParser
 from opendbc.car import Bus, create_button_events, structs, DT_CTRL
 from opendbc.car.common.conversions import Conversions as CV
 from opendbc.car.hyundai.hyundaicanfd import CanBus
-from opendbc.car.hyundai.values import HyundaiFlags, CAR, DBC, Buttons, CarControllerParams, CAMERA_SCC_CAR, HyundaiExtFlags
+from opendbc.car.hyundai.values import HyundaiFlags, CAR, DBC, Buttons, CarControllerParams, HyundaiExtFlags
 from opendbc.car.interfaces import CarStateBase
 
 from openpilot.common.params import Params
@@ -140,19 +139,20 @@ class CarState(CarStateBase):
     #self.rf_lateral = 0
 
     fingerprints_str = Params().get("FingerPrints")
-    fingerprints = ast.literal_eval(fingerprints_str)
+    try:
+      fingerprints = ast.literal_eval(fingerprints_str) if fingerprints_str else [{}, {}, {}]
+      if (not isinstance(fingerprints, (list, tuple)) or len(fingerprints) < 3 or
+          not all(isinstance(bus_fingerprint, dict) for bus_fingerprint in fingerprints[:3])):
+        fingerprints = [{}, {}, {}]
+    except (SyntaxError, ValueError, TypeError):
+      # FingerPrints is normally populated before CarState construction. Keep
+      # startup safe if the parameter is missing or partially written.
+      fingerprints = [{}, {}, {}]
     #print("fingerprints =", fingerprints)
-    ecu_disabled = False
-    if self.CP.openpilotLongitudinalControl and not (self.CP.flags & HyundaiFlags.CANFD_CAMERA_SCC):
-      ecu_disabled = True
-
-
     self.HAS_LFA_BUTTON = True if 913 in fingerprints[0] else False
     self.CRUISE_BUTTON_ALT = True if 1007 in fingerprints[0] else False
 
-    cam_bus = CanBus(CP).CAM
     pt_bus = CanBus(CP).ECAN
-    alt_bus = CanBus(CP).ACAN
     self.GEAR = True if 69 in fingerprints[pt_bus] else False
     self.GEAR_ALT = True if 64 in fingerprints[pt_bus] else False
     self.TPMS = True if 0x3a0 in fingerprints[pt_bus] else False
@@ -175,19 +175,28 @@ class CarState(CarStateBase):
       self.cp_cam = can_parsers[Bus.cam]
       self.cp_alt = can_parsers[Bus.alt] if Bus.alt in can_parsers else None
 
-      def add_if_seen(parser, name, ignore_counter = False):
+      def add_if_seen(parser, name, ignore_counter=False, ignore_alive=False):
+        if parser is None:
+          return False
         msg = parser.dbc.name_to_msg.get(name)
         if not msg:
           print(f"{name} not in DBC")
-          return
+          return False
         if msg.address not in parser.seen_addresses:
-          return
+          return False
         if msg.address in parser.addresses:
-          return
-        parser._add_message(name, ignore_counter = ignore_counter)   # ← 이름으로 등록
+          return True
+        # Optional messages must not make the whole parser invalid if the ECU
+        # stops transmitting them. This is required for SCC_CONTROL when OP
+        # longitudinal disables the radar/SCC ECU after fingerprinting.
+        frequency = math.nan if ignore_alive else None
+        parser._add_message(name, freq=frequency, ignore_counter=ignore_counter)
+        return True
 
-      def add_and_cache(parser, name: str, attr: str, ignore_counter: bool = False):
-        add_if_seen(parser, name, ignore_counter)
+      def add_and_cache(parser, name: str, attr: str, ignore_counter: bool = False, ignore_alive: bool = False):
+        if parser is None:
+          return False
+        add_if_seen(parser, name, ignore_counter, ignore_alive)
         if name in parser.vl:   # 등록 성공했을 때만
           setattr(self, attr, parser.vl[name])
           return True
@@ -225,7 +234,8 @@ class CarState(CarStateBase):
       else: # canfd
         if self.controls_ready_count == 120:
           cp_cruise = self.cp_cam if self.CP.flags & HyundaiFlags.CANFD_CAMERA_SCC else self.cp
-          add_and_cache(cp_cruise, "SCC_CONTROL", "scc_control")
+          scc_can_disappear = self.CP.openpilotLongitudinalControl and not (self.CP.flags & HyundaiFlags.CANFD_CAMERA_SCC)
+          add_and_cache(cp_cruise, "SCC_CONTROL", "scc_control", ignore_alive=scc_can_disappear)
         elif self.controls_ready_count == 121:
           add_and_cache(self.cp, "TCS", "tcs")
           add_and_cache(self.cp, "MDPS", "mdps")
@@ -265,7 +275,6 @@ class CarState(CarStateBase):
     self.monitor_fingerprint(can_parsers, self.CP.flags & HyundaiFlags.CANFD)
     cp = can_parsers[Bus.pt]
     cp_cam = can_parsers[Bus.cam]
-    cp_alt = can_parsers[Bus.alt] if Bus.alt in can_parsers else None
 
     if self.CP.flags & HyundaiFlags.CANFD:
       return self.update_canfd(can_parsers)
@@ -369,12 +378,10 @@ class CarState(CarStateBase):
       gear = cp.vl["LVR12"]["CF_Lvr_Gear"]
       ret.gearStep = cp.vl["LVR11"]["CF_Lvr_GearInf"]
 
-    if not self.CP.carFingerprint in (CAR.HYUNDAI_NEXO):
+    if self.CP.carFingerprint != CAR.HYUNDAI_NEXO:
       ret.gearShifter = self.parse_gear_shifter(self.shifter_values.get(gear))
     else:
       gear = cp.vl["ELECT_GEAR"]["Elect_Gear_Shifter"]
-      gear_disp = cp.vl["ELECT_GEAR"]
-
       gear_shifter = GearShifter.unknown
 
       if gear == 1546:  # Thank you for Neokii  # fix PolorBear 22.06.05
@@ -484,7 +491,6 @@ class CarState(CarStateBase):
   def update_canfd(self, can_parsers) -> structs.CarState:
     cp = can_parsers[Bus.pt]
     cp_cam = can_parsers[Bus.cam]
-    cp_alt = can_parsers[Bus.alt] if Bus.alt in can_parsers else None
 
     ret = structs.CarState()
 
@@ -648,8 +654,6 @@ class CarState(CarStateBase):
     lane_info = self.cam_0x2a4 if self.cam_0x2a4 is not None else self.cam_0x362
 
     if lane_info is not None:
-      left_lane_prob = lane_info["LEFT_LANE_PROB"]
-      right_lane_prob = lane_info["RIGHT_LANE_PROB"]
       left_lane_type = lane_info["LEFT_LANE_TYPE"] # 0: dashed, 1: solid, 2: undecided, 3: road edge, 4: DLM Inner Solid, 5: DLM InnerDashed, 6:DLM Inner Undecided, 7: Botts Dots, 8: Barrier
       right_lane_type = lane_info["RIGHT_LANE_TYPE"]
       left_lane_color = lane_info["LEFT_LANE_COLOR"]  # 0: none, 1: white, 2: yellow, 3: blue
@@ -674,7 +678,7 @@ class CarState(CarStateBase):
       try:
         dt_local = datetime(y, m, d, H, M, S, tzinfo=self.time_zone)
         ret.datetime = int(dt_local.timestamp() * 1000)
-      except:
+      except (ValueError, TypeError, OverflowError):
         #print(f"Error parsing local time: {y}-{m}-{d} {H}:{M}:{S} in {self.time_zone}")
         pass
 

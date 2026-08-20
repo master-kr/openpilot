@@ -16,6 +16,7 @@ from struct import unpack_from, calcsize, pack
 from cereal import log
 import cereal.messaging as messaging
 from openpilot.common.gpio import gpio_init, gpio_set
+from openpilot.common.params import Params
 from openpilot.common.utils import retry
 from openpilot.common.time_helpers import system_time_valid
 from openpilot.system.hardware.tici.pins import GPIO
@@ -234,8 +235,11 @@ def main() -> NoReturn:
   wait_for_modem()
 
   stop_download_event = Event()
-  assist_fetch_proc = Process(target=downloader_loop, args=(stop_download_event,))
-  assist_fetch_proc.start()
+  assist_fetch_proc = None
+  offline_mode = Params().get_bool("OfflineMode")
+  if not offline_mode:
+    assist_fetch_proc = Process(target=downloader_loop, args=(stop_download_event,))
+    assist_fetch_proc.start()
   def cleanup(sig, frame):
     cloudlog.warning("caught sig disabling quectel gps")
 
@@ -247,8 +251,9 @@ def main() -> NoReturn:
       cloudlog.warning('quectel not yet setup')
 
     stop_download_event.set()
-    assist_fetch_proc.kill()
-    assist_fetch_proc.join()
+    if assist_fetch_proc is not None:
+      assist_fetch_proc.kill()
+      assist_fetch_proc.join()
 
     sys.exit(0)
   signal.signal(signal.SIGINT, cleanup)
@@ -257,7 +262,7 @@ def main() -> NoReturn:
   # connect to modem
   diag = ModemDiag()
   r = setup_quectel(diag)
-  want_assistance = not r
+  want_assistance = not r and not offline_mode
   cloudlog.warning("quectel setup done")
   gpio_init(GPIO.GNSS_PWR_EN, True)
   gpio_set(GPIO.GNSS_PWR_EN, True)

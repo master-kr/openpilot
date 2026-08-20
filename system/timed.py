@@ -12,7 +12,8 @@ from openpilot.common.gps import get_gps_location_service
 
 
 def set_time(new_time):
-  diff = datetime.datetime.utcnow() - new_time
+  utc_now = datetime.datetime.now(datetime.UTC).replace(tzinfo=None)
+  diff = utc_now - new_time
   if abs(diff) < datetime.timedelta(seconds=10):
     cloudlog.debug(f"Time diff too small: {diff}")
     return
@@ -49,7 +50,7 @@ def main() -> NoReturn:
     gps = sm[gps_location_service]
     # GPS timestamps are UTC. Keep the system clock in UTC and let the UI apply
     # the configured local timezone (Asia/Seoul on Korean devices).
-    gps_time = datetime.datetime.utcfromtimestamp(gps.unixTimestampMillis / 1000.)
+    gps_time = datetime.datetime.fromtimestamp(gps.unixTimestampMillis / 1000., datetime.UTC).replace(tzinfo=None)
     if not sm.updated[gps_location_service] or (time.monotonic() - sm.logMonoTime[gps_location_service] / 1e9) > 2.0:
       continue
     if not gps.hasFix:

@@ -59,7 +59,7 @@ def only_offroad(started: bool, params: Params, CP: car.CarParams) -> bool:
   return not started
 
 def enable_updated(started: bool, params: Params, CP: car.CarParams) -> bool:
-  return not started and params.get_bool("SoftwareMenu")
+  return not started and params.get_bool("SoftwareMenu") and not params.get_bool("OfflineMode")
 
 def check_fleet(started, params, CP: car.CarParams) -> bool:
   return FLASK_AVAILABLE
@@ -85,7 +85,8 @@ def enable_map(started, params, CP: car.CarParams) -> bool:
   return params.get_bool("MapEnable")
 
 def enable_mapd(started, params, CP: car.CarParams) -> bool:
-  return enable_map(started, params, CP) and os.path.isdir(COMMON_DIR) and os.path.isfile(MAPD_PATH)
+  return (enable_map(started, params, CP) and os.path.isdir(COMMON_DIR) and
+          os.path.isfile(MAPD_PATH) and os.access(MAPD_PATH, os.X_OK))
 
 def enable_webrtc(started, params, CP: car.CarParams) -> bool:
   return params.get_int("DisableDM") == 2
@@ -155,7 +156,7 @@ procs = [
 
   # debug procs
   NativeProcess("bridge", "cereal/messaging", ["./bridge"], notcar),
-  PythonProcess("webrtcd", "system.webrtc.webrtcd", or_(notcar, and_(only_onroad, enable_webrtc))),
+  PythonProcess("webrtcd", "system.webrtc.webrtcd", or_(notcar, and_(only_onroad, enable_webrtc)), enabled=False),
   PythonProcess("webjoystick", "tools.bodyteleop.web", notcar),
   PythonProcess("joystick", "tools.joystick.joystick_control", and_(joystick, iscar)),
 

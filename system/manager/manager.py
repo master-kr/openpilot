@@ -5,7 +5,6 @@ import signal
 import subprocess
 import sys
 import threading
-import time
 import traceback
 
 from cereal import log
@@ -44,8 +43,13 @@ def generate_missing_supported_car_lists(params: Params) -> None:
       continue
     values_py = os.path.join(BASEDIR, "opendbc", "car", brand, "values.py")
     try:
-      result = subprocess.run([sys.executable, values_py], check=True, capture_output=True, text=True)
-      params.put(key, result.stdout)
+      result = subprocess.run([sys.executable, values_py], check=True, capture_output=True,
+                              text=True, encoding="utf-8")
+      supported_cars = result.stdout.strip()
+      if supported_cars:
+        params.put(key, supported_cars)
+      else:
+        cloudlog.warning(f"empty supported-car list for {brand}")
     except Exception:
       cloudlog.exception(f"failed to build {key}")
 
@@ -193,7 +197,6 @@ def manager_thread() -> None:
 
   while True:
     sm.update(1000)
-    now = time.monotonic()
 
     started = sm['deviceState'].started
 

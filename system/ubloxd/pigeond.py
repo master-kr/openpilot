@@ -232,7 +232,7 @@ def init_pigeon(pigeon: TTYPigeon) -> bool:
 
       # try getting AssistNow if we have a token
       token = Params().get('AssistNowToken')
-      if token is not None:
+      if token is not None and not Params().get_bool("OfflineMode"):
         try:
           for msg in get_assistnow_messages(token):
             pigeon.send_with_ack(msg, ack=UBLOX_ASSIST_ACK)

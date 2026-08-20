@@ -10,7 +10,6 @@ import glob
 import json
 import os
 import shutil
-import time
 
 import cereal.messaging as messaging
 
@@ -36,7 +35,8 @@ def map_database_present() -> bool:
   if os.path.isfile(db_path):
     return os.path.getsize(db_path) > 0
   if os.path.isdir(db_path):
-    return any(os.scandir(db_path))
+    with os.scandir(db_path) as entries:
+      return any(entries)
   return False
 
 
@@ -53,7 +53,9 @@ def remove_existing_map_data() -> None:
 
 def request_korea_download(mem_params: Params) -> None:
   request = {"nations": [OSM_COUNTRY_CODE], "states": []}
-  mem_params.put("OSMDownloadLocations", json.dumps(request, separators=(",", ":")))
+  # OSMDownloadLocations is a typed JSON Param. Pass the dictionary so Params
+  # serializes it; passing an already encoded string raises TypeError.
+  mem_params.put("OSMDownloadLocations", request)
   cloudlog.info(f"mapd: requested offline map data for {OSM_COUNTRY_TITLE} ({OSM_COUNTRY_CODE})")
 
 

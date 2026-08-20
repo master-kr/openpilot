@@ -1,12 +1,9 @@
 #!/usr/bin/env python3
 import json
-import math
 import os
 import threading
-import importlib
 
 import requests
-import numpy as np
 
 import cereal.messaging as messaging
 from cereal import log
@@ -19,7 +16,6 @@ from openpilot.selfdrive.navd.helpers import (Coordinate, coordinate_from_param,
                                     minimum_distance,
                                     parse_banner_instructions)
 from openpilot.common.swaglog import cloudlog
-from selfdrive.carrot.carrot_man import CarrotMan
 
 
 REROUTE_DISTANCE = 25
@@ -76,7 +72,10 @@ class RouteEngine:
 
     self.carrot_route_active = False
 
-    if "MAPBOX_TOKEN" in os.environ:
+    if self.params.get_bool("OfflineMode"):
+      self.mapbox_token = ""
+      self.mapbox_host = ""
+    elif "MAPBOX_TOKEN" in os.environ:
       self.mapbox_token = os.environ["MAPBOX_TOKEN"]
       self.mapbox_host = "https://api.mapbox.com"
     elif self.params.get_int("PrimeType") == 0:
@@ -117,7 +116,7 @@ class RouteEngine:
 
     carrot_man = self.sm['carrotMan']
     if carrot_man.xPosLat != 0.0 and carrot_man.xPosLon != 0.0:
-      self.last_bearing = carrot_man.xPosAngle;
+      self.last_bearing = carrot_man.xPosAngle
       self.last_position = Coordinate(carrot_man.xPosLat, carrot_man.xPosLon)
       self.localizer_valid = self.gps_ok = True
     else:
@@ -125,6 +124,11 @@ class RouteEngine:
       self.carrot_route_active = False
 
   def recompute_route(self):
+    if self.params.get_bool("OfflineMode"):
+      self.clear_route()
+      self.reset_recompute_limits()
+      return
+
     if self.last_position is None:
       return
 
@@ -153,6 +157,10 @@ class RouteEngine:
       self.recompute_countdown = max(0, self.recompute_countdown - 1)
 
   def calculate_route(self, destination):
+    if self.params.get_bool("OfflineMode"):
+      self.clear_route()
+      return
+
     cloudlog.warning(f"Calculating route {self.last_position} -> {destination}")
     print(f"############## Calculating route {self.last_position} -> {destination}")
     self.nav_destination = destination

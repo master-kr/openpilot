@@ -3,6 +3,7 @@ import numpy as np
 
 from cereal import car
 from openpilot.common.conversions import Conversions as CV
+from openpilot.common.params import Params
 
 from opendbc.car import structs
 GearShifter = structs.CarState.GearShifter
@@ -142,7 +143,6 @@ class VCruiseHelper:
 
 
 
-from openpilot.common.params import Params
 #from openpilot.selfdrive.selfdrived.events import Events
 #EventName = log.OnroadEvent.EventName
 
@@ -490,6 +490,7 @@ class VCruiseCarrot:
 
     v_cruise_kph, button_type, long_pressed = self._carrot_command(v_cruise_kph, button_type, long_pressed)
 
+    resuming_from_cancel = self._cruise_cancel_state and button_type == ButtonType.accelCruise
     if button_type in [ButtonType.accelCruise, ButtonType.decelCruise]:
       self._paddle_decel_active = False
       if self.autoCruiseControl_cancel_timer > 0:
@@ -503,7 +504,11 @@ class VCruiseCarrot:
       if button_type == ButtonType.accelCruise:
         self._lat_enabled = True
         self._pause_auto_speed_up = False
-        if self._soft_hold_active > 0:
+        if resuming_from_cancel:
+          # RES after CANCEL restores the saved speed verbatim. CruiseButtonMode
+          # speed stepping must not turn a saved 100 km/h into 101/110 km/h.
+          self._soft_hold_active = 0
+        elif self._soft_hold_active > 0:
           self._soft_hold_active = 0
         elif self._cruise_ready or not CC.enabled or CS.cruiseState.standstill or self.carrot_cruise_active:
           if False: #self._cruise_button_mode in [2, 3]:

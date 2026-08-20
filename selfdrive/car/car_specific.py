@@ -171,7 +171,12 @@ class CarSpecificEvents:
       events = self.create_common_events(CS, CS_prev, extra_gears=(GearShifter.sport, GearShifter.manumatic),
                                          pcm_enable=self.CP.pcmCruise,
                                          allow_enable=any(self.cruise_buttons) and not self.hyundai_cancel_latched,
-                                         allow_button_cancel=True)
+                                         allow_button_cancel=False)
+      # Hyundai pcmCruise previously suppressed the generic cancel handler.
+      # Emit exactly one immediate event on the physical press without also
+      # inheriting the generic "CANCEL while parked" shutdown side effect.
+      if cancel_pressed:
+        events.add(EventName.buttonCancel)
       if resume_pressed and not self.hyundai_cancel_latched:
         events.add(EventName.buttonEnable)
 
