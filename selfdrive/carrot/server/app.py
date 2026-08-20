@@ -10,7 +10,6 @@ Wires the aiohttp Application together:
 from __future__ import annotations
 
 import asyncio
-import time
 import traceback
 
 from aiohttp import ClientSession, web
@@ -28,15 +27,10 @@ VISION_DIAG_UPLOAD_MAX_BYTES = 16 * 1024 * 1024
 # ===== request log middleware =====
 @web.middleware
 async def log_mw(request, handler):
-  ua = request.headers.get("User-Agent", "")
-  ip = request.remote
-  t0 = time.time()
   try:
     resp = await handler(request)
     return resp
   finally:
-    #dt = (time.time() - t0) * 1000
-    #print(f"[REQ] {ip} {request.method} {request.path_qs} {dt:.1f}ms UA={ua[:80]}")
     pass
 
 
