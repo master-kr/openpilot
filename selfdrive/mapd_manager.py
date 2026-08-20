@@ -31,11 +31,9 @@ def ensure_map_directories() -> None:
 
 
 def map_database_present() -> bool:
-  db_path = os.path.join(COMMON_DIR, "db")
-  if os.path.isfile(db_path):
-    return os.path.getsize(db_path) > 0
-  if os.path.isdir(db_path):
-    with os.scandir(db_path) as entries:
+  offline_path = os.path.join(COMMON_DIR, "offline")
+  if os.path.isdir(offline_path):
+    with os.scandir(offline_path) as entries:
       return any(entries)
   return False
 
@@ -59,13 +57,22 @@ def request_korea_download(mem_params: Params) -> None:
   cloudlog.info(f"mapd: requested offline map data for {OSM_COUNTRY_TITLE} ({OSM_COUNTRY_CODE})")
 
 
+def handle_download_request(params: Params, mem_params: Params) -> bool:
+  """Start a download only after the user presses the MAP download/update button."""
+  if not params.get_bool("OsmDbUpdatesCheck"):
+    return False
+  remove_existing_map_data()
+  params.put_bool("OsmDbUpdatesCheck", False)
+  request_korea_download(mem_params)
+  return True
+
+
 def main() -> None:
   params = Params()
   mem_params = Params("/dev/shm/params")
   gps_service = get_gps_location_service(params)
   sm = messaging.SubMaster([gps_service], poll=gps_service)
   rk = Ratekeeper(1.0, print_delay_threshold=None)
-  requested_missing_data = False
 
   ensure_map_directories()
   mem_params.put("LastGPSPosition", "{}")
@@ -73,14 +80,7 @@ def main() -> None:
   while True:
     sm.update(1000)
 
-    if params.get_bool("OsmDbUpdatesCheck"):
-      remove_existing_map_data()
-      params.put_bool("OsmDbUpdatesCheck", False)
-      requested_missing_data = False
-
-    if not map_database_present() and not requested_missing_data:
-      request_korea_download(mem_params)
-      requested_missing_data = True
+    handle_download_request(params, mem_params)
 
     gps = sm[gps_service]
     if sm.updated[gps_service] and sm.valid[gps_service] and gps.hasFix:

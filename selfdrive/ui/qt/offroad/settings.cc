@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <cassert>
 #include <cmath>
 #include <string>
@@ -6,6 +7,9 @@
 #include <thread> //차선캘리
 
 #include <QDebug>
+#include <QDir>
+#include <QJsonDocument>
+#include <QJsonObject>
 #include <QProcess>
 
 #include "common/watchdog.h"
@@ -687,7 +691,7 @@ CarrotPanel::CarrotPanel(QWidget* parent) : QWidget(parent) {
   cruiseToggles->addItem(new CValueControl("DynamicTFollow", tr("Dynamic GAP control"), tr("Scales the speed/acceleration-based dynamic addition to the base time gap."), 0, 100, 5));
   cruiseToggles->addItem(new CValueControl("DynamicTFollowLC", tr("Dynamic GAP control (LaneChange)"), tr("Reduces the applied time gap during an active lane change by this percentage."), 0, 100, 5));
   cruiseToggles->addItem(new CValueControl("MyDrivingMode", tr("DRIVEMODE: Select"), tr("1:ECO,2:SAFE,3:NORMAL,4:HIGH"), 1, 4, 1));
-  cruiseToggles->addItem(new CValueControl("MyDrivingModeAuto", tr("DRIVEMODE: Auto"), tr("NORMAL mode only"), 0, 1, 1));
+  cruiseToggles->addItem(new CValueControl("MyDrivingModeAuto", tr("DRIVEMODE: Auto"), tr("Automatically selects SAFE in congestion and NORMAL otherwise; a manual mode change disables the automatic selection."), 0, 1, 1));
   cruiseToggles->addItem(new CValueControl("TrafficLightDetectMode", tr("TrafficLight DetectMode"), tr("0:None, 1:Stopping only, 2: Stop & Go"), 0, 2, 1));
   cruiseToggles->addItem(new CValueControl("AChangeCostStarting", tr("AChangeCostStarting"), tr("Longitudinal MPC acceleration-change cost used while starting from a stop."), 0, 200, 10));
   cruiseToggles->addItem(new CValueControl("TrafficStopDistanceAdjust", tr("TrafficStopDistanceAdjust"), tr("Centimeter offset applied to model-based traffic-light stopping distance."), -600, 600, 50));
@@ -702,17 +706,17 @@ CarrotPanel::CarrotPanel(QWidget* parent) : QWidget(parent) {
 
   latLongToggles = new ListWidget(this);
   latLongToggles->addItem(new CValueControl("UseLaneLineSpeed", tr("Laneline mode speed(0)"), tr("Laneline mode, lat_mpc control used"), 0, 200, 5));
-  latLongToggles->addItem(new CValueControl("UseLaneLineCurveSpeed", tr("Laneline mode curve speed(0)"), tr("Laneline mode, high speed only"), 0, 200, 5));
+  latLongToggles->addItem(new CValueControl("UseLaneLineCurveSpeed", tr("Laneline mode curve speed(0)"), tr("In lane-line mode, uses lane-based curvature control only when the absolute turn-speed target is above this km/h threshold."), 0, 200, 5));
   latLongToggles->addItem(new CValueControl("AdjustLaneOffset", tr("AdjustLaneOffset(0)cm"), tr("Maximum automatic lane-center offset adjustment, in centimeters."), 0, 500, 5));
   latLongToggles->addItem(new CValueControl("LaneChangeNeedTorque", tr("LaneChange need torque"), tr("-1:Disable lanechange, 0: no need torque, 1:need torque"), -1, 1, 1));
-  latLongToggles->addItem(new CValueControl("LaneChangeDelay", tr("LaneChange delay"), tr("x0.1sec"), 0, 100, 5));
+  latLongToggles->addItem(new CValueControl("LaneChangeDelay", tr("LaneChange delay"), tr("Delay before an automatic lane change starts after the blinker request, scaled by 0.1 seconds."), 0, 100, 5));
   latLongToggles->addItem(new CValueControl("LaneChangeBsd", tr("LaneChange Bsd"), tr("-1:ignore bsd, 0:BSD detect, 1: block steer torque"), -1, 1, 1));
   latLongToggles->addItem(new CValueControl("LaneLineCheck", tr("LaneChange LineCheck"), tr("0:Color+Type, 1:Type only, 2:Type+torque override solid"), 0, 2, 1));
   latLongToggles->addItem(new CValueControl("CustomSR", tr("LAT: SteerRatiox0.1(0)"), tr("Custom SteerRatio"), 0, 300, 1));
   latLongToggles->addItem(new CValueControl("SteerRatioRate", tr("LAT: SteerRatioRatex0.01(100)"), tr("SteerRatio apply rate"), 30, 170, 1));
   latLongToggles->addItem(new CValueControl("PathOffset", tr("LAT: PathOffset"), tr("(-)left, (+)right"), -150, 150, 1));
   latLongToggles->addItem(new CValueControl("SteerActuatorDelay", tr("LAT:SteerActuatorDelay(30)"), tr("x0.01, 0:LiveDelay"), 0, 100, 1));
-  latLongToggles->addItem(new CValueControl("LatSmoothSec", tr("LAT:LatSmoothSec(13)"), tr("x0.01"), 1, 30, 1));
+  latLongToggles->addItem(new CValueControl("LatSmoothSec", tr("LAT:LatSmoothSec(13)"), tr("Lane-based desired-curvature smoothing time and look-ahead adjustment, scaled by 0.01 seconds."), 1, 30, 1));
   latLongToggles->addItem(new CValueControl("LateralTorqueCustom", tr("LAT: TorqueCustom(0)"), tr("Selects stock live torque parameters or the custom acceleration-factor/friction values below."), 0, 2, 1));
   latLongToggles->addItem(new CValueControl("LateralTorqueAccelFactor", tr("LAT: TorqueAccelFactor(2500)"), tr("Custom torque-controller lateral acceleration factor, scaled by 0.001."), 1000, 6000, 10));
   latLongToggles->addItem(new CValueControl("LateralTorqueFriction", tr("LAT: TorqueFriction(100)"), tr("Custom torque-controller friction compensation, scaled by 0.001."), 0, 1000, 10));
@@ -723,11 +727,11 @@ CarrotPanel::CarrotPanel(QWidget* parent) : QWidget(parent) {
   latLongToggles->addItem(new CValueControl("LongTuningKiV", tr("LONG: I Gain(0)"), tr("Longitudinal PID integral gain, scaled by 0.001."), 0, 2000, 5));
   latLongToggles->addItem(new CValueControl("LongTuningKf", tr("LONG: FF Gain(100)"), tr("Longitudinal PID feed-forward gain, scaled by 0.01."), 0, 200, 5));
   latLongToggles->addItem(new CValueControl("LongActuatorDelay", tr("LONG: ActuatorDelay(20)"), tr("Longitudinal actuator delay used by planning/control, scaled by 0.01 seconds."), 0, 200, 5));
-  latLongToggles->addItem(new CValueControl("VEgoStopping", tr("LONG: VEgoStopping(50)"), tr("Stopping factor"), 1, 100, 5));
+  latLongToggles->addItem(new CValueControl("VEgoStopping", tr("LONG: VEgoStopping(50)"), tr("Planned-speed threshold below which longitudinal planning declares a stop, scaled by 0.01 m/s."), 1, 100, 5));
   latLongToggles->addItem(new CValueControl("RadarReactionFactor", tr("LONG: Radar reaction factor(100)"), tr("Scales lead-vehicle radar reaction in longitudinal planning, in percent."), 0, 200, 10));
   latLongToggles->addItem(new CValueControl("StoppingAccel", tr("LONG: StoppingStartAccelx0.01(-40)"), tr("Acceleration threshold that starts the stopping-state profile, in 0.01 m/s²."), -100, 0, 5));
   latLongToggles->addItem(new CValueControl("StopDistanceCarrot", tr("LONG: StopDistance (600)cm"), tr("Base desired stopping distance used by Carrot longitudinal planning, in centimeters."), 300, 1000, 10));
-  latLongToggles->addItem(new CValueControl("JLeadFactor3", tr("LONG: Jerk Lead Factor (0)"), tr("x0.01"), 0, 100, 5));
+  latLongToggles->addItem(new CValueControl("JLeadFactor3", tr("LONG: Jerk Lead Factor (0)"), tr("Scales smoothed lead-vehicle jerk used by longitudinal MPC, by 0.01."), 0, 100, 5));
   latLongToggles->addItem(new CValueControl("CruiseMaxVals0", tr("ACCEL:0km/h(160)"), tr("Acceleration needed at specified speed.(x0.01m/s^2)"), 1, 250, 5));
   latLongToggles->addItem(new CValueControl("CruiseMaxVals1", tr("ACCEL:10km/h(160)"), tr("Acceleration needed at specified speed.(x0.01m/s^2)"), 1, 250, 5));
   latLongToggles->addItem(new CValueControl("CruiseMaxVals2", tr("ACCEL:40km/h(120)"), tr("Acceleration needed at specified speed.(x0.01m/s^2)"), 1, 250, 5));
@@ -848,7 +852,7 @@ CarrotPanel::CarrotPanel(QWidget* parent) : QWidget(parent) {
   startToggles->addItem(new CValueControl("EnableConnect", tr("EnableConnect"), tr("Your device may be banned by Comma"), 0, 2, 1));
   startToggles->addItem(new CValueControl("MapboxStyle", tr("Mapbox Style(0)"), tr("Selects the online Mapbox renderer style; it does not change offline OSM data."), 0, 2, 1));
   startToggles->addItem(new CValueControl("MapEnable", tr("MAP 데이터 사용"), tr("0: off (no map process/download/UI), 1: use offline South Korea OSM road names."), 0, 1, 1));
-  startToggles->addItem(new CValueControl("OsmDbUpdatesCheck", tr("MAP 데이터 갱신"), tr("Set to 1 to replace the local South Korea OSM database once; it returns to 0 after the request."), 0, 1, 1));
+  startToggles->addItem(new MapDataControl(this));
   startToggles->addItem(new CValueControl("RecordRoadCam", tr("Record Road camera(0)"), tr("1:RoadCam, 2:RoadCam+WideRoadCam"), 0, 2, 1));
   startToggles->addItem(new CValueControl("HDPuse", tr("Use HDP(CCNC)(0)"), tr("1:While Using APN, 2:Always"), 0, 2, 1));
   startToggles->addItem(new CValueControl("NNFF", tr("NNFF"), tr("Twilsonco's NNFF(Reboot required)"), 0, 1, 1));
@@ -1005,4 +1009,83 @@ void CValueControl::increaseValue() {
 
 void CValueControl::decreaseValue() {
   adjustValue(-m_unit);
+}
+
+MapDataControl::MapDataControl(QWidget *parent)
+    : ButtonControl(tr("한국 MAP 데이터"), tr("다운로드/갱신"),
+                    tr("MAP 데이터 사용을 1로 설정한 뒤 버튼을 누르면 OpenStreetMap 한국 데이터를 내려받습니다. 다운로드가 끝나면 오프라인 도로명에 사용하며 매 부팅마다 다시 받지 않습니다."), parent) {
+  connect(this, &ButtonControl::clicked, this, &MapDataControl::requestDownload);
+  connect(&timer, &QTimer::timeout, this, &MapDataControl::refresh);
+  timer.setInterval(1000);
+  refresh();
+}
+
+void MapDataControl::showEvent(QShowEvent *event) {
+  ButtonControl::showEvent(event);
+  refresh();
+  timer.start();
+}
+
+void MapDataControl::hideEvent(QHideEvent *event) {
+  timer.stop();
+  ButtonControl::hideEvent(event);
+}
+
+bool MapDataControl::mapDataPresent() const {
+  const QDir map_dir("/data/media/0/osm/offline");
+  return map_dir.exists() && !map_dir.entryList(QDir::Dirs | QDir::Files | QDir::NoDotAndDotDot).isEmpty();
+}
+
+void MapDataControl::requestDownload() {
+  if (!params.getBool("MapEnable")) {
+    ConfirmationDialog::alert(tr("먼저 MAP 데이터 사용을 1로 설정하세요."), this);
+    return;
+  }
+
+  if (ConfirmationDialog::confirm(
+        tr("한국 오프라인 MAP 데이터를 다운로드하거나 기존 데이터를 갱신하시겠습니까?"),
+        tr("다운로드 시작"), this)) {
+    // Do not display a completed/failed result from the previous request while
+    // mapd is preparing the new one.
+    params.remove("OSMDownloadProgress");
+    params.putBool("OsmDbUpdatesCheck", true);
+    setEnabled(false);
+    setValue(tr("다운로드 요청 중"));
+  }
+}
+
+void MapDataControl::refresh() {
+  if (!params.getBool("MapEnable")) {
+    setEnabled(false);
+    setValue(tr("미사용"));
+    return;
+  }
+
+  const bool request_pending = params.getBool("OsmDbUpdatesCheck");
+  const std::string locations = mem_params.get("OSMDownloadLocations");
+  const QJsonObject progress = QJsonDocument::fromJson(
+    QByteArray::fromStdString(params.get("OSMDownloadProgress"))).object();
+  const int total = progress.value("total_files").toInt();
+  const int downloaded = progress.value("downloaded_files").toInt();
+  const bool active = progress.value("active").toBool(false);
+
+  const bool waiting_for_new_progress = !locations.empty() && !active &&
+                                        (total <= 0 || downloaded >= total);
+  if (request_pending || (active && total <= 0) || waiting_for_new_progress) {
+    setEnabled(false);
+    setValue(tr("다운로드 준비 중"));
+  } else if (active) {
+    const int percent = total > 0 ? std::clamp(downloaded * 100 / total, 0, 100) : 0;
+    setEnabled(false);
+    setValue(tr("다운로드 중 %1/%2 (%3%)").arg(downloaded).arg(total).arg(percent));
+  } else if (total > 0 && downloaded < total) {
+    setEnabled(true);
+    setValue(tr("다운로드 실패 %1/%2 · 재시도").arg(downloaded).arg(total));
+  } else if (mapDataPresent()) {
+    setEnabled(true);
+    setValue(tr("다운로드 완료"));
+  } else {
+    setEnabled(true);
+    setValue(tr("미다운로드"));
+  }
 }

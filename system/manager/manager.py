@@ -53,6 +53,46 @@ def generate_missing_supported_car_lists(params: Params) -> None:
     except Exception:
       cloudlog.exception(f"failed to build {key}")
 
+
+def seed_local_update_branches(params: Params, current_branch: str, enumerate_refs: bool = True) -> None:
+  """Keep the software branch selector useful without a background network check."""
+  branches: list[str] = []
+
+  def add_branch(branch: str | None) -> None:
+    if not branch:
+      return
+    branch = branch.strip()
+    if branch.startswith("origin/"):
+      branch = branch[len("origin/"):]
+    if branch and branch != "HEAD" and branch not in branches:
+      branches.append(branch)
+
+  add_branch(current_branch)
+  add_branch(params.get("UpdaterTargetBranch"))
+  for branch in (params.get("UpdaterAvailableBranches") or "").split(","):
+    add_branch(branch)
+
+  if enumerate_refs:
+    try:
+      result = subprocess.run(
+        ["git", "for-each-ref", "--format=%(refname:short)", "refs/heads", "refs/remotes/origin"],
+        cwd=BASEDIR, check=True, capture_output=True, text=True, encoding="utf-8",
+      )
+      for branch in result.stdout.splitlines():
+        add_branch(branch)
+    except Exception:
+      cloudlog.exception("failed to enumerate local update branches")
+
+  if branches:
+    params.put("UpdaterAvailableBranches", ",".join(branches))
+  if current_branch:
+    params.put("UpdaterTargetBranch", current_branch)
+
+
+def populate_startup_caches(params: Params, current_branch: str) -> None:
+  generate_missing_supported_car_lists(params)
+  seed_local_update_branches(params, current_branch)
+
 def set_default_params():
   params = Params()
   for k in params.all_keys():
@@ -112,6 +152,9 @@ def manager_init() -> None:
   params.put_bool("IsTestedBranch", build_metadata.tested_channel)
   params.put_bool("IsReleaseBranch", build_metadata.release_channel)
   params.put("HardwareSerial", serial)
+  # Publish the current branch immediately without spawning a process on the
+  # boot critical path. Additional local refs are added by the cache thread.
+  seed_local_update_branches(params, build_metadata.channel, enumerate_refs=False)
 
   # set dongle id
   # This build is intentionally offline and does not run Athena/Connect. Avoid
@@ -140,8 +183,8 @@ def manager_init() -> None:
   for p in managed_processes.values():
     p.prepare()
 
-  threading.Thread(target=generate_missing_supported_car_lists, args=(params,), daemon=True,
-                   name="supported-cars-cache").start()
+  threading.Thread(target=populate_startup_caches, args=(params, build_metadata.channel), daemon=True,
+                   name="startup-cache").start()
 
 
 def manager_cleanup() -> None:

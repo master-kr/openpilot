@@ -59,7 +59,11 @@ def only_offroad(started: bool, params: Params, CP: car.CarParams) -> bool:
   return not started
 
 def enable_updated(started: bool, params: Params, CP: car.CarParams) -> bool:
-  return not started and params.get_bool("SoftwareMenu") and not params.get_bool("OfflineMode")
+  # Offline mode blocks automatic checks, but an explicit Software-panel
+  # CHECK/DOWNLOAD request may start updated for that one operation.
+  user_requested = params.get_int("UpdaterUserRequest") in (1, 2)
+  return (not started and params.get_bool("SoftwareMenu") and
+          (not params.get_bool("OfflineMode") or user_requested))
 
 def check_fleet(started, params, CP: car.CarParams) -> bool:
   return FLASK_AVAILABLE

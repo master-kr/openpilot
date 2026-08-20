@@ -194,8 +194,32 @@ AdvancedNetworking::AdvancedNetworking(QWidget* parent, WifiManager* wifi): QWid
   });
   list->addItem(meteredToggle);
 
-  // Hidden Network
-  hiddenNetworkButton = new ButtonControl(tr("Hidden Network"), tr("CONNECT"));
+  // Hidden Network: selecting use/no-use is separate from entering the SSID.
+  const bool hiddenNetworkEnabled = params.getBool("HiddenNetworkEnabled");
+  hiddenNetworkToggle = new ToggleControl(
+    tr("Use Hidden Network"),
+    tr("Off: do not use a hidden Wi-Fi network. On: show the connection setup below. Turning this off forgets the hidden network saved here."),
+    "", hiddenNetworkEnabled);
+  QObject::connect(hiddenNetworkToggle, &ToggleControl::toggleFlipped, [=](bool state) {
+    params.putBool("HiddenNetworkEnabled", state);
+    hiddenNetworkButton->setVisible(state);
+    if (!state) {
+      const QString saved_ssid = QString::fromStdString(params.get("HiddenNetworkSsid"));
+      if (!saved_ssid.isEmpty()) {
+        wifi->forgetConnection(saved_ssid);
+        params.remove("HiddenNetworkSsid");
+      }
+      hiddenNetworkButton->setValue("");
+      wifi->requestScan();
+    }
+  });
+  list->addItem(hiddenNetworkToggle);
+
+  hiddenNetworkButton = new ButtonControl(
+    tr("Hidden Network Connection"), tr("SET UP"),
+    tr("Enter the Wi-Fi name (SSID) and password only when hidden network use is enabled."));
+  hiddenNetworkButton->setValue(QString::fromStdString(params.get("HiddenNetworkSsid")));
+  hiddenNetworkButton->setVisible(hiddenNetworkEnabled);
   connect(hiddenNetworkButton, &ButtonControl::clicked, [=]() {
     QString ssid = InputDialog::getText(tr("Enter SSID"), this, "", false, 1);
     if (!ssid.isEmpty()) {
@@ -208,7 +232,15 @@ AdvancedNetworking::AdvancedNetworking(QWidget* parent, WifiManager* wifi): QWid
       } else {
         wifi->connect(hidden_network, true);
       }
+      params.put("HiddenNetworkSsid", ssid.toStdString());
+      hiddenNetworkButton->setValue(ssid);
       emit requestWifiScreen();
+    }
+  });
+  QObject::connect(wifi, &WifiManager::wrongPassword, this, [=](const QString &ssid) {
+    if (ssid == QString::fromStdString(params.get("HiddenNetworkSsid"))) {
+      params.remove("HiddenNetworkSsid");
+      hiddenNetworkButton->setValue("");
     }
   });
   list->addItem(hiddenNetworkButton);

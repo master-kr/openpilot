@@ -64,6 +64,7 @@ private:
   ToggleControl* tetheringToggle;
   ToggleControl* roamingToggle;
   ButtonControl* editApnButton;
+  ToggleControl* hiddenNetworkToggle;
   ButtonControl* hiddenNetworkButton;
   ToggleControl* meteredToggle;
   WifiManager* wifi = nullptr;

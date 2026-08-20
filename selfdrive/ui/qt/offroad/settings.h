@@ -8,6 +8,7 @@
 #include <QLabel>
 #include <QPushButton>
 #include <QStackedWidget>
+#include <QTimer>
 #include <QWidget>
 
 #include "selfdrive/ui/ui.h"
@@ -89,7 +90,7 @@ public:
 private:
   void showEvent(QShowEvent *event) override;
   void updateLabels();
-  void checkForUpdates();
+  void requestUpdate(bool fetch);
 
   bool is_onroad = false;
 
@@ -154,4 +155,22 @@ private:
   int m_min;
   int m_max;
   int m_unit;
+};
+
+class MapDataControl : public ButtonControl {
+public:
+  explicit MapDataControl(QWidget *parent = nullptr);
+
+protected:
+  void showEvent(QShowEvent *event) override;
+  void hideEvent(QHideEvent *event) override;
+
+private:
+  void requestDownload();
+  void refresh();
+  bool mapDataPresent() const;
+
+  Params params;
+  Params mem_params{"/dev/shm/params"};
+  QTimer timer;
 };

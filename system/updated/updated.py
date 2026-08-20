@@ -435,6 +435,9 @@ def main() -> None:
     updater = Updater()
     update_failed_count = 0 # TODO: Load from param?
     wait_helper = WaitTimeHelper()
+    initial_user_request = params.get_int("UpdaterUserRequest")
+    if initial_user_request in (UserRequest.CHECK, UserRequest.FETCH):
+      wait_helper.user_request = initial_user_request
 
     # invalidate old finalized update
     set_consistent_flag(False)
@@ -456,10 +459,11 @@ def main() -> None:
         # ensure we have some params written soon after startup
         updater.set_params(False, update_failed_count, exception)
 
-        if not system_time_valid() or first_run:
+        if not system_time_valid() or (first_run and wait_helper.user_request == UserRequest.NONE):
           first_run = False
           wait_helper.sleep(60)
           continue
+        first_run = False
 
         update_failed_count += 1
 
@@ -502,6 +506,7 @@ def main() -> None:
 
       # infrequent attempts if we successfully updated recently
       wait_helper.user_request = UserRequest.NONE
+      params.put_int("UpdaterUserRequest", UserRequest.NONE)
       wait_helper.sleep(5*60 if update_failed_count > 0 else 1.5*60*60)
 
 

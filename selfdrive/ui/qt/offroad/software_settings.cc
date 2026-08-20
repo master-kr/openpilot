@@ -16,8 +16,11 @@
 #include "system/hardware/hw.h"
 
 
-void SoftwarePanel::checkForUpdates() {
-  std::system("pkill -SIGUSR1 -f system.updated.updated");
+void SoftwarePanel::requestUpdate(bool fetch) {
+  // In OfflineMode the manager starts updated only for this explicit request.
+  params.putInt("UpdaterUserRequest", fetch ? 2 : 1);
+  std::system(fetch ? "pkill -SIGHUP -f system.updated.updated" :
+                      "pkill -SIGUSR1 -f system.updated.updated");
 }
 
 SoftwarePanel::SoftwarePanel(QWidget* parent) : ListWidget(parent) {
@@ -34,9 +37,9 @@ SoftwarePanel::SoftwarePanel(QWidget* parent) : ListWidget(parent) {
   connect(downloadBtn, &ButtonControl::clicked, [=]() {
     downloadBtn->setEnabled(false);
     if (downloadBtn->text() == tr("CHECK")) {
-      checkForUpdates();
+      requestUpdate(false);
     } else {
-      std::system("pkill -SIGHUP -f system.updated.updated");
+      requestUpdate(true);
     }
   });
   addItem(downloadBtn);
@@ -53,7 +56,15 @@ SoftwarePanel::SoftwarePanel(QWidget* parent) : ListWidget(parent) {
   targetBranchBtn = new ButtonControl(tr("Target Branch"), tr("SELECT"));
   connect(targetBranchBtn, &ButtonControl::clicked, [=]() {
     auto current = params.get("GitBranch");
-    QStringList branches = QString::fromStdString(params.get("UpdaterAvailableBranches")).split(",");
+    QStringList branches;
+    for (const QString &branch : QString::fromStdString(params.get("UpdaterAvailableBranches")).split(",", QString::SkipEmptyParts)) {
+      const QString trimmed = branch.trimmed();
+      if (!trimmed.isEmpty() && !branches.contains(trimmed)) branches.push_back(trimmed);
+    }
+    const QString target = QString::fromStdString(params.get("UpdaterTargetBranch"));
+    for (const QString &fallback : {QString::fromStdString(current), target}) {
+      if (!fallback.isEmpty() && !branches.contains(fallback)) branches.push_front(fallback);
+    }
     for (QString b : {current.c_str(), "devel-staging", "devel", "nightly", "nightly-dev", "master"}) {
       auto i = branches.indexOf(b);
       if (i >= 0) {
@@ -67,7 +78,7 @@ SoftwarePanel::SoftwarePanel(QWidget* parent) : ListWidget(parent) {
     if (!selection.isEmpty()) {
       params.put("UpdaterTargetBranch", selection.toStdString());
       targetBranchBtn->setValue(QString::fromStdString(params.get("UpdaterTargetBranch")));
-      checkForUpdates();
+      requestUpdate(false);
     }
   });
   if (!params.getBool("IsTestedBranch")) {
@@ -142,10 +153,17 @@ void SoftwarePanel::updateLabels() {
     }
     downloadBtn->setEnabled(true);
   }
-  targetBranchBtn->setValue(QString::fromStdString(params.get("UpdaterTargetBranch")));
+  QString target_branch = QString::fromStdString(params.get("UpdaterTargetBranch"));
+  if (target_branch.isEmpty()) target_branch = QString::fromStdString(params.get("GitBranch"));
+  targetBranchBtn->setValue(target_branch);
 
   // current + new versions
-  versionLbl->setText(QString::fromStdString(params.get("UpdaterCurrentDescription")));
+  QString current_version = QString::fromStdString(params.get("UpdaterCurrentDescription"));
+  if (current_version.isEmpty()) {
+    current_version = QString("%1 (%2)")
+      .arg(QString::fromStdString(params.get("Version")), QString::fromStdString(params.get("GitBranch")));
+  }
+  versionLbl->setText(current_version);
   versionLbl->setDescription(QString::fromStdString(params.get("UpdaterCurrentReleaseNotes")));
 
   installBtn->setVisible(!is_onroad && params.getBool("UpdateAvailable"));

@@ -72,7 +72,7 @@
     </message>
     <message>
         <source>CONNECT</source>
-        <translation>연결됨</translation>
+        <translation>연결</translation>
     </message>
     <message>
         <source>Enter SSID</source>
@@ -85,6 +85,26 @@
     <message>
         <source>for &quot;%1&quot;</source>
         <translation>&quot;%1&quot;에 접속하려면 비밀번호가 필요합니다</translation>
+    </message>
+    <message>
+        <source>Use Hidden Network</source>
+        <translation>숨겨진 네트워크 사용</translation>
+    </message>
+    <message>
+        <source>Off: do not use a hidden Wi-Fi network. On: show the connection setup below. Turning this off forgets the hidden network saved here.</source>
+        <translation>미사용: 숨겨진 Wi-Fi를 사용하지 않습니다. 사용: 아래에 연결 설정을 표시합니다. 미사용으로 변경하면 여기서 저장한 숨겨진 네트워크 연결을 삭제합니다.</translation>
+    </message>
+    <message>
+        <source>Hidden Network Connection</source>
+        <translation>숨겨진 네트워크 연결 설정</translation>
+    </message>
+    <message>
+        <source>SET UP</source>
+        <translation>설정</translation>
+    </message>
+    <message>
+        <source>Enter the Wi-Fi name (SSID) and password only when hidden network use is enabled.</source>
+        <translation>숨겨진 네트워크를 사용할 때만 Wi-Fi 이름(SSID)과 비밀번호를 입력합니다.</translation>
     </message>
 </context>
 <context>
@@ -111,11 +131,451 @@
     </message>
     <message>
         <source>Path</source>
-        <translation>패쓰</translation>
+        <translation>경로</translation>
     </message>
     <message>
         <source>SELECT YOUR CAR</source>
         <translation>차량선택</translation>
+    </message>
+    <message>
+        <source>Short RES/SET press increment in km/h (or the converted mph step).</source>
+        <translation>RES/SET 버튼을 짧게 눌렀을 때 설정속도가 변경되는 기본 단위입니다. mph 사용 시 환산된 단위가 적용됩니다.</translation>
+    </message>
+    <message>
+        <source>CruiseButtonMode extra SET decrement and speed-table step in km/h.</source>
+        <translation>CruiseButtonMode에서 추가 SET 감속과 속도 테이블 이동에 사용하는 단위(km/h)입니다.</translation>
+    </message>
+    <message>
+        <source>Base longitudinal time gap for personality/GAP 1, in 0.01 seconds.</source>
+        <translation>주행 성향/GAP 1에 적용되는 기본 종방향 차간시간입니다. 설정값×0.01초입니다.</translation>
+    </message>
+    <message>
+        <source>Base longitudinal time gap for personality/GAP 2, in 0.01 seconds.</source>
+        <translation>주행 성향/GAP 2에 적용되는 기본 종방향 차간시간입니다. 설정값×0.01초입니다.</translation>
+    </message>
+    <message>
+        <source>Base longitudinal time gap for personality/GAP 3, in 0.01 seconds.</source>
+        <translation>주행 성향/GAP 3에 적용되는 기본 종방향 차간시간입니다. 설정값×0.01초입니다.</translation>
+    </message>
+    <message>
+        <source>Base longitudinal time gap for personality/GAP 4, in 0.01 seconds.</source>
+        <translation>주행 성향/GAP 4에 적용되는 기본 종방향 차간시간입니다. 설정값×0.01초입니다.</translation>
+    </message>
+    <message>
+        <source>Scales the speed/acceleration-based dynamic addition to the base time gap.</source>
+        <translation>차량 속도와 가감속 상태에 따라 기본 차간시간에 추가되는 동적 보정량의 적용 비율입니다.</translation>
+    </message>
+    <message>
+        <source>Reduces the applied time gap during an active lane change by this percentage.</source>
+        <translation>차선 변경 중 적용되는 차간시간을 설정한 비율만큼 줄입니다.</translation>
+    </message>
+    <message>
+        <source>Longitudinal MPC acceleration-change cost used while starting from a stop.</source>
+        <translation>정차 후 출발할 때 종방향 MPC가 사용하는 가속도 변화 비용입니다.</translation>
+    </message>
+    <message>
+        <source>Centimeter offset applied to model-based traffic-light stopping distance.</source>
+        <translation>모델이 인식한 신호등 정지 위치에 적용하는 거리 보정값(cm)입니다.</translation>
+    </message>
+    <message>
+        <source>Maximum automatic lane-center offset adjustment, in centimeters.</source>
+        <translation>자동 차로 중앙 보정에 허용할 최대 오프셋(cm)입니다.</translation>
+    </message>
+    <message>
+        <source>Selects stock live torque parameters or the custom acceleration-factor/friction values below.</source>
+        <translation>순정 실시간 토크 파라미터 또는 아래의 사용자 횡가속도 계수와 마찰값을 선택합니다.</translation>
+    </message>
+    <message>
+        <source>Custom torque-controller lateral acceleration factor, scaled by 0.001.</source>
+        <translation>사용자 토크 제어기의 횡가속도 계수입니다. 설정값×0.001입니다.</translation>
+    </message>
+    <message>
+        <source>Custom torque-controller friction compensation, scaled by 0.001.</source>
+        <translation>사용자 토크 제어기의 마찰 보상값입니다. 설정값×0.001입니다.</translation>
+    </message>
+    <message>
+        <source>Overrides the Hyundai steering command maximum when nonzero.</source>
+        <translation>0이 아닐 때 Hyundai 조향 명령의 최대값을 이 값으로 덮어씁니다.</translation>
+    </message>
+    <message>
+        <source>Overrides the Hyundai steering command ramp-up limit when nonzero.</source>
+        <translation>0이 아닐 때 Hyundai 조향 명령의 증가 제한값을 이 값으로 덮어씁니다.</translation>
+    </message>
+    <message>
+        <source>Overrides the Hyundai steering command ramp-down limit when nonzero.</source>
+        <translation>0이 아닐 때 Hyundai 조향 명령의 감소 제한값을 이 값으로 덮어씁니다.</translation>
+    </message>
+    <message>
+        <source>Longitudinal PID proportional gain, scaled by 0.01.</source>
+        <translation>종방향 PID 비례 게인입니다. 설정값×0.01입니다.</translation>
+    </message>
+    <message>
+        <source>Longitudinal PID integral gain, scaled by 0.001.</source>
+        <translation>종방향 PID 적분 게인입니다. 설정값×0.001입니다.</translation>
+    </message>
+    <message>
+        <source>Longitudinal PID feed-forward gain, scaled by 0.01.</source>
+        <translation>종방향 PID 피드포워드 게인입니다. 설정값×0.01입니다.</translation>
+    </message>
+    <message>
+        <source>Longitudinal actuator delay used by planning/control, scaled by 0.01 seconds.</source>
+        <translation>경로 계획과 제어에 적용되는 종방향 액추에이터 지연시간입니다. 설정값×0.01초입니다.</translation>
+    </message>
+    <message>
+        <source>Scales lead-vehicle radar reaction in longitudinal planning, in percent.</source>
+        <translation>종방향 제어에서 선행차 레이더 반응 강도를 백분율로 조정합니다.</translation>
+    </message>
+    <message>
+        <source>Acceleration threshold that starts the stopping-state profile, in 0.01 m/s².</source>
+        <translation>정지 상태 제어를 시작하는 가속도 임계값입니다. 설정값×0.01 m/s²입니다.</translation>
+    </message>
+    <message>
+        <source>Base desired stopping distance used by Carrot longitudinal planning, in centimeters.</source>
+        <translation>Carrot 종방향 제어에서 사용하는 기본 목표 정차거리(cm)입니다.</translation>
+    </message>
+    <message>
+        <source>0: hidden, 1: standard debug information, 2: expanded debug information.</source>
+        <translation>0: 숨김, 1: 기본 디버그 정보, 2: 확장 디버그 정보</translation>
+    </message>
+    <message>
+        <source>0: hidden, 1: upper TPMS, 2: lower TPMS, 3: both.</source>
+        <translation>0: 숨김, 1: 상단 TPMS, 2: 하단 TPMS, 3: 모두 표시</translation>
+    </message>
+    <message>
+        <source>Selects the on-road diagnostic plot data set; 0 hides the plot.</source>
+        <translation>주행 화면에 표시할 진단 그래프 종류를 선택합니다. 0은 그래프를 숨깁니다.</translation>
+    </message>
+    <message>
+        <source>Scales calculated on-road display brightness; 0 keeps the calculated value.</source>
+        <translation>주행 화면에서 계산된 밝기에 적용할 비율입니다. 0은 계산된 밝기를 그대로 사용합니다.</translation>
+    </message>
+    <message>
+        <source>Scales the rendered driving-path width, in percent.</source>
+        <translation>주행 화면에 표시되는 경로 폭을 백분율로 조정합니다.</translation>
+    </message>
+    <message>
+        <source>Scales normal alert sound volume, in percent.</source>
+        <translation>일반 경고음 음량을 백분율로 조정합니다.</translation>
+    </message>
+    <message>
+        <source>Scales engage/disengage alert sound volume, in percent.</source>
+        <translation>인게이지 및 해제 알림음의 음량을 백분율로 조정합니다.</translation>
+    </message>
+    <message>
+        <source>Maximum ignition-off time before automatic shutdown, in minutes.</source>
+        <translation>시동이 꺼진 뒤 장치가 자동으로 종료되기까지의 최대 시간(분)입니다.</translation>
+    </message>
+    <message>
+        <source>Selects the online Mapbox renderer style; it does not change offline OSM data.</source>
+        <translation>온라인 Mapbox 화면 스타일을 선택합니다. 오프라인 OSM 데이터에는 영향을 주지 않습니다.</translation>
+    </message>
+    <message>
+        <source>When enabled, holding the accelerator can raise the saved cruise speed to vehicle speed while cruise is active.</source>
+        <translation>크루즈 활성 중 악셀을 계속 밟아 실제 속도가 설정속도보다 높아지면 저장된 설정속도를 현재 속도까지 올립니다.</translation>
+    </message>
+    <message>
+        <source>Ignores the vehicle interface minimum steering-speed restriction where supported.</source>
+        <translation>지원 차량에서 차량 인터페이스의 최소 조향 가능 속도 제한을 무시합니다.</translation>
+    </message>
+    <message>
+        <source>0: driver monitoring enabled, 1: disabled, 2: disabled (camera streaming is unavailable in this video-off build).</source>
+        <translation>0: 운전자 모니터링 사용, 1: 사용 안 함, 2: 사용 안 함(영상 저장 OFF 빌드에서는 카메라 스트리밍도 사용할 수 없음)</translation>
+    </message>
+    <message>
+        <source>Starts the device Wi-Fi hotspot during boot when enabled.</source>
+        <translation>사용 시 장치가 부팅될 때 Wi-Fi 핫스팟을 시작합니다.</translation>
+    </message>
+    <message>
+        <source>Shows the Software settings panel and permits the updater process while off-road.</source>
+        <translation>소프트웨어 설정 화면을 표시하고, 정차 상태에서 사용자가 요청한 업데이트를 실행할 수 있게 합니다.</translation>
+    </message>
+    <message>
+        <source>Selects the Hyundai LDWS-compatible lateral message behavior for supported vehicles.</source>
+        <translation>지원되는 Hyundai 차량에서 LDWS 호환 횡방향 메시지 동작을 선택합니다.</translation>
+    </message>
+    <message>
+        <source>Applies C3X Lite process and hardware behavior; requires restart.</source>
+        <translation>C3X Lite용 프로세스 및 하드웨어 동작을 적용합니다. 변경 후 재부팅이 필요합니다.</translation>
+    </message>
+    <message>
+        <source>Scales model-curvature automatic curve speed, in percent.</source>
+        <translation>모델 곡률로 계산한 자동 커브 속도를 백분율로 조정합니다.</translation>
+    </message>
+    <message>
+        <source>Blends the saved cruise speed toward a newly lower road limit; -1 applies the new limit directly.</source>
+        <translation>새 도로 제한속도가 더 낮을 때 저장된 크루즈 속도를 설정 비율만큼 제한속도에 맞춥니다. -1은 새 제한속도를 즉시 적용합니다.</translation>
+    </message>
+    <message>
+        <source>Sets the deceleration completion point. A larger value completes deceleration farther away from the camera.</source>
+        <translation>과속카메라 감속이 완료되는 지점을 설정합니다. 값이 클수록 카메라에서 더 먼 곳에서 감속을 마칩니다.</translation>
+    </message>
+    <message>
+        <source>Multiplies navigation camera speed limits before control, in percent.</source>
+        <translation>내비게이션 카메라 제한속도에 적용할 제어 비율입니다.</translation>
+    </message>
+    <message>
+        <source>Time-distance horizon used to finish speed-bump deceleration.</source>
+        <translation>과속방지턱 감속을 완료할 지점을 시간거리 기준으로 설정합니다.</translation>
+    </message>
+    <message>
+        <source>Target speed used for navigation speed-bump events, in km/h.</source>
+        <translation>내비게이션이 과속방지턱을 감지했을 때 적용할 목표속도(km/h)입니다.</translation>
+    </message>
+    <message>
+        <source>Scales route/map turn speed targets, in percent.</source>
+        <translation>경로 및 지도 기반 회전 목표속도를 백분율로 조정합니다.</translation>
+    </message>
+    <message>
+        <source>Adds model-predicted turn-speed influence; 0 disables it.</source>
+        <translation>모델이 예측한 회전 속도의 반영 비율을 설정합니다. 0은 사용하지 않습니다.</translation>
+    </message>
+    <message>
+        <source>Allows Auto Turn Control to switch the on-road map display during a turn.</source>
+        <translation>자동 회전 제어 중 주행 화면의 지도 표시를 자동으로 전환합니다.</translation>
+    </message>
+    <message>
+        <source>0:Normal,1:User1,2:User2</source>
+        <translation>0: 기본, 1: 사용자 모드 1, 2: 사용자 모드 2</translation>
+    </message>
+    <message>
+        <source>0:Long,1:Long+Lat</source>
+        <translation>0: CANCEL 시 종방향 제어만 해제, 1: 종방향과 횡방향 제어 모두 해제</translation>
+    </message>
+    <message>
+        <source>0:Normal,1:Decel&amp;Stop&amp;LeadCarReady</source>
+        <translation>0: 기본 LFA 동작, 1: 감속·정지 제어 및 선행차 출발 대기</translation>
+    </message>
+    <message>
+        <source>Temporarily increasing the set speed to improve fuel efficiency.</source>
+        <translation>하이브리드 차량의 EV 모드 활용 등 연비 개선을 위해 목표속도를 설정값만큼 일시적으로 높입니다.</translation>
+    </message>
+    <message>
+        <source>Auto speed up based on the lead car up to RoadSpeedLimit.</source>
+        <translation>선행차를 따라 가속할 때 도로 제한속도에 설정 비율을 적용한 범위까지 설정속도를 자동으로 높입니다.</translation>
+    </message>
+    <message>
+        <source>1:ECO,2:SAFE,3:NORMAL,4:HIGH</source>
+        <translation>1: 연비, 2: 안전, 3: 일반, 4: 고속 주행</translation>
+    </message>
+    <message>
+        <source>NORMAL mode only</source>
+        <translation>혼잡 시 안전 모드, 원활한 주행 시 일반 모드로 자동 전환합니다. 사용자가 주행 모드를 직접 바꾸면 자동 전환이 해제됩니다.</translation>
+    </message>
+    <message>
+        <source>0:None, 1:Stopping only, 2: Stop &amp; Go</source>
+        <translation>0: 사용 안 함, 1: 정지 신호만 감지, 2: 정지와 출발 신호 모두 감지</translation>
+    </message>
+    <message>
+        <source>Laneline mode, lat_mpc control used</source>
+        <translation>설정속도 이상에서 차선 기반 경로와 횡방향 MPC 제어를 사용합니다.</translation>
+    </message>
+    <message>
+        <source>Laneline mode, high speed only</source>
+        <translation>차선 기반 경로를 고속 구간에서만 사용하도록 하는 커브 속도 기준입니다.</translation>
+    </message>
+    <message>
+        <source>-1:Disable lanechange, 0: no need torque, 1:need torque</source>
+        <translation>-1: 자동 차선 변경 사용 안 함, 0: 조향 입력 없이 즉시 변경, 1: 운전자 조향 입력 필요</translation>
+    </message>
+    <message>
+        <source>LaneChange delay</source>
+        <translation>차선 변경을 시작하기 전 대기시간입니다.</translation>
+    </message>
+    <message>
+        <source>x0.1sec</source>
+        <translation>설정값×0.1초입니다.</translation>
+    </message>
+    <message>
+        <source>-1:ignore bsd, 0:BSD detect, 1: block steer torque</source>
+        <translation>-1: 사각지대 감지 무시, 0: 사각지대 감지 시 대기, 1: 감지 시 조향 토크 차단</translation>
+    </message>
+    <message>
+        <source>0:Color+Type, 1:Type only, 2:Type+torque override solid</source>
+        <translation>0: 차선 색상과 종류 확인, 1: 종류만 확인, 2: 종류 확인 후 실선은 운전자 조향 입력으로 허용</translation>
+    </message>
+    <message>
+        <source>Custom SteerRatio</source>
+        <translation>사용자 조향비입니다. 0이면 차량 기본값을 사용합니다.</translation>
+    </message>
+    <message>
+        <source>SteerRatio apply rate</source>
+        <translation>사용자 조향비를 적용하는 비율입니다. 설정값×0.01입니다.</translation>
+    </message>
+    <message>
+        <source>(-)left, (+)right</source>
+        <translation>주행 경로 위치를 보정합니다. 음수는 왼쪽, 양수는 오른쪽입니다.</translation>
+    </message>
+    <message>
+        <source>x0.01, 0:LiveDelay</source>
+        <translation>조향 액추에이터 지연시간입니다. 설정값×0.01초이며, 0은 실시간 지연값을 사용합니다.</translation>
+    </message>
+    <message>
+        <source>x0.01</source>
+        <translation>설정값×0.01입니다.</translation>
+    </message>
+    <message>
+        <source>Stopping factor</source>
+        <translation>정지 상태로 전환할 때 사용하는 차량 속도 기준값입니다.</translation>
+    </message>
+    <message>
+        <source>Acceleration needed at specified speed.(x0.01m/s^2)</source>
+        <translation>표시된 차량 속도에서 허용할 최대 가속도입니다. 설정값×0.01 m/s²입니다.</translation>
+    </message>
+    <message>
+        <source>89:Basic, steering instrument panel error 85~87</source>
+        <translation>89를 권장합니다. 일부 차량은 85~87 부근에서 계기판 조향 경고가 발생할 수 있습니다.</translation>
+    </message>
+    <message>
+        <source>0:None,1:Time/Date,2:Time,3:Date</source>
+        <translation>0: 표시 안 함, 1: 시간과 날짜, 2: 시간만, 3: 날짜만</translation>
+    </message>
+    <message>
+        <source>0:None,1:Display</source>
+        <translation>0: 표시 안 함, 1: 표시</translation>
+    </message>
+    <message>
+        <source>-1:None, 0:Path, 1:Path+Lane, 2: Path+Lane+RoadEdge</source>
+        <translation>-1: 표시 안 함, 0: 주행 경로, 1: 경로와 차선, 2: 경로·차선·도로 경계</translation>
+    </message>
+    <message>
+        <source>0:None,1:Display,2:RelPos,3:Stopped Car</source>
+        <translation>0: 표시 안 함, 1: 레이더 정보, 2: 상대 위치, 3: 정지 차량 정보</translation>
+    </message>
+    <message>
+        <source>Display tire paths with a gradient effect on the lane markers.</source>
+        <translation>차선 표시 위에 그라데이션 효과가 적용된 타이어 예상 궤적을 표시합니다.</translation>
+    </message>
+    <message>
+        <source>(+10:Stroke)0:Red,1:Orange,2:Yellow,3:Green,4:Blue,5:Indigo,6:Violet,7:Brown,8:White,9:Black</source>
+        <translation>0: 빨강, 1: 주황, 2: 노랑, 3: 초록, 4: 파랑, 5: 남색, 6: 보라, 7: 갈색, 8: 흰색, 9: 검정. 값에 10을 더하면 테두리를 표시합니다.</translation>
+    </message>
+    <message>
+        <source>0:Normal,1,2:Rec,3,4:^^,5,6:Rec,7,8:^^,9,10,11,12:Smooth^^</source>
+        <translation>0: 기본, 1·2: 사각형, 3·4: 화살표형, 5·6: 사각형, 7·8: 화살표형, 9~12: 부드러운 화살표형</translation>
+    </message>
+    <message>
+        <source>1:Connect the SCC's CAN line to CAM, 2:Sync Cruise state, 3:StockLong</source>
+        <translation>1: SCC CAN선을 CAM에 연결한 종방향 제어 차량, 2: 크루즈 상태 동기화, 3: 순정 종방향 크루즈</translation>
+    </message>
+    <message>
+        <source>1:HDA2,2:HDA2+BSM</source>
+        <translation>1: HDA2 구성, 2: HDA2와 사각지대 모니터링 구성</translation>
+    </message>
+    <message>
+        <source>1:Enable RadarTrack, -1,2:Disable use HKG SCC radar at all times</source>
+        <translation>1: 레이더 트랙 사용, -1 또는 2: Hyundai·Kia SCC 레이더를 항상 사용하지 않음</translation>
+    </message>
+    <message>
+        <source>Softhold, Auto Cruise ON/OFF control</source>
+        <translation>조건에 따른 크루즈 자동 ON/OFF와 소프트홀드 기능을 설정합니다. 0은 사용하지 않습니다.</translation>
+    </message>
+    <message>
+        <source>When GAS/Brake is OFF, Cruise ON when the lead car gets closer.</source>
+        <translation>악셀과 브레이크를 밟지 않은 상태에서 선행차가 설정 거리 안으로 가까워지면 크루즈를 자동으로 켭니다.</translation>
+    </message>
+    <message>
+        <source>1:SteerEnable, 2:Steer/Cruise Engage</source>
+        <translation>1: 출발 시 조향 제어 사용, 2: 출발 시 조향과 크루즈를 함께 인게이지</translation>
+    </message>
+    <message>
+        <source>Gas(Accel)Tok enable speed</source>
+        <translation>악셀 페달을 이용한 크루즈 인게이지를 허용할 최소 속도입니다.</translation>
+    </message>
+    <message>
+        <source>Toyota must set to 1, Honda 3</source>
+        <translation>차량 PCM에서 순정 크루즈 설정속도를 읽는 방식입니다. Toyota는 1, Honda는 3을 사용합니다.</translation>
+    </message>
+    <message>
+        <source>Your device may be banned by Comma</source>
+        <translation>comma Connect를 사용합니다. 비공식 소프트웨어 장치는 comma 서비스에서 차단될 수 있습니다.</translation>
+    </message>
+    <message>
+        <source>0: off (no map process/download/UI), 1: use offline South Korea OSM road names.</source>
+        <translation>0: 미사용(MAP 프로세스·다운로드·도로명 표시 중지), 1: 한국 오프라인 OSM 도로명 사용. 데이터는 아래 버튼으로 별도 다운로드합니다.</translation>
+    </message>
+    <message>
+        <source>1:RoadCam, 2:RoadCam+WideRoadCam</source>
+        <translation>1: 전방 카메라 녹화, 2: 전방과 광각 전방 카메라 녹화</translation>
+    </message>
+    <message>
+        <source>1:While Using APN, 2:Always</source>
+        <translation>1: APN 사용 중에만 HDP 사용, 2: 항상 HDP 사용</translation>
+    </message>
+    <message>
+        <source>Twilsonco's NNFF(Reboot required)</source>
+        <translation>Twilsonco의 NNFF 조향 제어를 사용합니다. 변경 후 재부팅이 필요합니다.</translation>
+    </message>
+    <message>
+        <source>Twilsonco's NNFF-Lite(Reboot required)</source>
+        <translation>Twilsonco의 NNFF-Lite 조향 제어를 사용합니다. 변경 후 재부팅이 필요합니다.</translation>
+    </message>
+    <message>
+        <source>0:None, 1:TCP JSON Data(Reboot required)</source>
+        <translation>0: 데이터 공유 안 함, 1: TCP JSON 데이터 공유. 변경 후 재부팅이 필요합니다.</translation>
+    </message>
+    <message>
+        <source>When you approach a curve, reduce your speed. Minimum speed</source>
+        <translation>커브 접근 시 자동 감속에서 허용할 최저 목표속도입니다.</translation>
+    </message>
+    <message>
+        <source>-1:NotUsed,RoadLimitSpeed+Offset</source>
+        <translation>-1: 사용 안 함, 그 외 값: 도로 제한속도에 설정값을 더해 적용</translation>
+    </message>
+    <message>
+        <source>0:No slowdown, 1: speed camera, 2: + accident prevention bump, 3: + mobile camera</source>
+        <translation>0: 감속 안 함, 1: 과속카메라, 2: 과속카메라와 과속방지턱, 3: 과속카메라·방지턱·이동식 카메라</translation>
+    </message>
+    <message>
+        <source>Lower number, slows down from a greater distance</source>
+        <translation>과속카메라 감속률입니다. 값이 작을수록 더 먼 거리에서 감속을 시작합니다.</translation>
+    </message>
+    <message>
+        <source>0: off, 1:tbt+camera, 2:tbt+camera+bump</source>
+        <translation>0: 표시 안 함, 1: 경로 안내와 카메라, 2: 경로 안내·카메라·과속방지턱</translation>
+    </message>
+    <message>
+        <source>0: off, 1:vision, 2:vision+route, 3: route</source>
+        <translation>0: 사용 안 함, 1: 비전 기반, 2: 비전과 경로 정보, 3: 경로 정보 기반</translation>
+    </message>
+    <message>
+        <source>0: off, 1:accel, 2:decel, 3: all</source>
+        <translation>0: 사용 안 함, 1: 가속만, 2: 감속만, 3: 가속과 감속 모두</translation>
+    </message>
+    <message>
+        <source>0:None, 1: lane change, 2: lane change + speed, 3: speed</source>
+        <translation>0: 사용 안 함, 1: 차선 변경, 2: 차선 변경과 속도 제어, 3: 속도 제어만</translation>
+    </message>
+    <message>
+        <source>0:None, turn speed</source>
+        <translation>0: 사용 안 함, 그 외 값: 자동 회전 제어 시 적용할 목표속도</translation>
+    </message>
+    <message>
+        <source>dist=speed*time</source>
+        <translation>자동 회전 제어 종료 거리를 속도×시간으로 계산할 때 사용하는 시간값입니다.</translation>
+    </message>
+    <message>
+        <source>Automatically selects SAFE in congestion and NORMAL otherwise; a manual mode change disables the automatic selection.</source>
+        <translation>혼잡 시 안전 모드, 원활한 주행 시 일반 모드로 자동 전환합니다. 사용자가 주행 모드를 직접 바꾸면 자동 전환이 해제됩니다.</translation>
+    </message>
+    <message>
+        <source>In lane-line mode, uses lane-based curvature control only when the absolute turn-speed target is above this km/h threshold.</source>
+        <translation>차선 모드에서 커브 목표속도의 절댓값이 이 기준(km/h)보다 높을 때만 차선 기반 곡률 제어를 사용합니다.</translation>
+    </message>
+    <message>
+        <source>Delay before an automatic lane change starts after the blinker request, scaled by 0.1 seconds.</source>
+        <translation>방향지시등 요청 후 자동 차선 변경을 시작하기까지의 대기시간입니다. 설정값×0.1초입니다.</translation>
+    </message>
+    <message>
+        <source>Lane-based desired-curvature smoothing time and look-ahead adjustment, scaled by 0.01 seconds.</source>
+        <translation>차선 기반 목표 곡률의 부드러움과 미리보기 시간을 조정합니다. 설정값×0.01초입니다.</translation>
+    </message>
+    <message>
+        <source>Planned-speed threshold below which longitudinal planning declares a stop, scaled by 0.01 m/s.</source>
+        <translation>종방향 계획 속도가 이 값보다 낮을 때 정지 상태로 판단합니다. 설정값×0.01 m/s입니다.</translation>
+    </message>
+    <message>
+        <source>Scales smoothed lead-vehicle jerk used by longitudinal MPC, by 0.01.</source>
+        <translation>종방향 MPC에 반영되는 선행차 저크(가속도 변화율)의 비율입니다. 설정값×0.01입니다.</translation>
     </message>
 </context>
 <context>

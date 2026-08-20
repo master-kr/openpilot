@@ -52,6 +52,8 @@ inline static std::unordered_map<std::string, ParamKeyAttributes> keys = {
     {"GsmApn", {PERSISTENT, STRING}},
     {"GsmMetered", {PERSISTENT, BOOL, "1"}},
     {"GsmRoaming", {PERSISTENT, BOOL}},
+    {"HiddenNetworkEnabled", {PERSISTENT, BOOL, "0"}},
+    {"HiddenNetworkSsid", {PERSISTENT, STRING}},
     {"HardwareSerial", {PERSISTENT, STRING}},
     {"HasAcceptedTerms", {PERSISTENT, STRING, "0"}},
     {"InstallDate", {PERSISTENT, TIME}},
@@ -129,6 +131,7 @@ inline static std::unordered_map<std::string, ParamKeyAttributes> keys = {
     {"UpdaterNewReleaseNotes", {CLEAR_ON_MANAGER_START, BYTES}},
     {"UpdaterState", {CLEAR_ON_MANAGER_START, STRING}},
     {"UpdaterTargetBranch", {CLEAR_ON_MANAGER_START, STRING}},
+    {"UpdaterUserRequest", {CLEAR_ON_MANAGER_START, INT, "0"}},
     {"UpdaterLastFetchTime", {PERSISTENT, TIME}},
     {"Version", {PERSISTENT, STRING}},
 
