@@ -204,6 +204,7 @@ void OnroadWindow::updateState(const UIState &s) {
 }
 
 void OnroadWindow::mousePressEvent(QMouseEvent* e) {
+  uiState()->resetOnroadBrightnessTimer();
   //printf("uiState()->scene.navigate_on_openpilot = %d\n", uiState()->scene.navigate_on_openpilot);
 //#ifdef ENABLE_MAPS
 //  if (map != nullptr) {

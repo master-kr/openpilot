@@ -3,6 +3,7 @@
 #include <cmath>
 #include <string>
 #include <tuple>
+#include <utility>
 #include <vector>
 #include <thread> //차선캘리
 
@@ -759,7 +760,30 @@ CarrotPanel::CarrotPanel(QWidget* parent) : QWidget(parent) {
   dispToggles->addItem(new CValueControl("ShowRadarInfo", tr("Radar Info"), tr("0:None,1:Display,2:RelPos,3:Stopped Car"), 0, 3, 1));
   dispToggles->addItem(new CValueControl("ShowRouteInfo", tr("Route Info"), tr("0:None,1:Display"), 0, 1, 1));
   dispToggles->addItem(new CValueControl("ShowPlotMode", tr("Debug plot"), tr("Selects the on-road diagnostic plot data set; 0 hides the plot."), 0, 10, 1));
-  dispToggles->addItem(new CValueControl("ShowCustomBrightness", tr("Brightness ratio"), tr("Scales calculated on-road display brightness; 0 keeps the calculated value."), 0, 100, 10));
+  const QString auto_label = tr("Auto");
+  const QString always_on_label = tr("Always on");
+  const QString dark_label = tr("Dark");
+  const QString enabled_label = tr("Enabled");
+  const QString disabled_label = tr("Disabled");
+  const QString seconds_label = tr("s");
+  const QString minutes_label = tr("min");
+  dispToggles->addItem(new CValueControl("BrightnessControl", tr("Screen brightness"),
+    tr("0 automatically follows camera-based ambient brightness; 5–100 sets a fixed screen brightness."), 0, 100, 5,
+    [auto_label](int value) { return value == 0 ? auto_label : QString("%1%").arg(value); }));
+  dispToggles->addItem(new CValueControl("OnroadScreenOff", tr("Driving screen dim timer"),
+    tr("Dims the screen after this delay while driving. Touching the screen or a configured alert restores brightness."), -2, 10, 1,
+    [always_on_label, seconds_label, minutes_label](int value) {
+      if (value == -2) return always_on_label;
+      if (value == -1) return QString("15 %1").arg(seconds_label);
+      if (value == 0) return QString("30 %1").arg(seconds_label);
+      return QString("%1 %2").arg(value).arg(minutes_label);
+    }));
+  dispToggles->addItem(new CValueControl("OnroadScreenOffBrightness", tr("Dimmed screen brightness"),
+    tr("Applies this percentage to automatic brightness after the timer expires. 0 turns the backlight dark."), 0, 100, 10,
+    [dark_label](int value) { return value == 0 ? dark_label : QString("%1%").arg(value); }));
+  dispToggles->addItem(new CValueControl("OnroadScreenOffEvent", tr("Wake screen for normal alerts"),
+    tr("Enabled wakes the screen for every alert. Disabled wakes it only for user-prompt and critical alerts."), 0, 1, 1,
+    [enabled_label, disabled_label](int value) { return value == 0 ? disabled_label : enabled_label; }));
   //dispToggles->addItem(new CValueControl("ShowHudMode", "Display Mode", "0:Frog,1:APilot,2:Bottom,3:Top,4:Left,5:Left-Bottom", 0, 5, 1));
   //dispToggles->addItem(new CValueControl("ShowSteerRotate", "Handle rotate", "0:None,1:Rotate", 0, 1, 1));
   //dispToggles->addItem(new CValueControl("ShowAccelRpm", "Accel meter", "0:None,1:Display,1:Accel+RPM", 0, 2, 1));
@@ -952,8 +976,9 @@ void CarrotPanel::updateButtonStyles() {
 }
 
 
-CValueControl::CValueControl(const QString& params, const QString& title, const QString& desc, int min, int max, int unit)
-  : AbstractControl(title, desc), m_params(params), m_min(min), m_max(max), m_unit(unit) {
+CValueControl::CValueControl(const QString& params, const QString& title, const QString& desc, int min, int max, int unit,
+                             ValueFormatter formatter)
+  : AbstractControl(title, desc), m_params(params), m_min(min), m_max(max), m_unit(unit), m_formatter(std::move(formatter)) {
 
   label.setAlignment(Qt::AlignVCenter | Qt::AlignRight);
   label.setStyleSheet("color: #e0e879");
@@ -994,7 +1019,8 @@ void CValueControl::showEvent(QShowEvent* event) {
 }
 
 void CValueControl::refresh() {
-  label.setText(QString::fromStdString(Params().get(m_params.toStdString())));
+  const int value = QString::fromStdString(Params().get(m_params.toStdString())).toInt();
+  label.setText(m_formatter ? m_formatter(value) : QString::number(value));
 }
 
 void CValueControl::adjustValue(int delta) {

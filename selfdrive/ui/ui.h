@@ -80,6 +80,7 @@ class UIState : public QObject {
 public:
   UIState(QObject* parent = 0);
   void updateStatus();
+  void resetOnroadBrightnessTimer();
   inline bool engaged() const {
     return scene.started && (*sm)["selfdriveState"].getSelfdriveState().getEnabled();
   }
@@ -95,8 +96,11 @@ public:
   PrimeState *prime_state;
 
   float max_distance = 0.0;
-  float show_brightness_ratio = 1.0;
-  int show_brightness_timer = 20;
+  int brightness_control = 0;
+  int onroad_screen_off = -2;
+  int onroad_screen_off_brightness = 50;
+  bool onroad_screen_off_event = true;
+  int onroad_brightness_timer = -1;
 
   bool ublox_avaliable = true;
 

@@ -1,5 +1,7 @@
 #pragma once
 
+#include <functional>
+
 #include <map>
 #include <string>
 
@@ -140,7 +142,9 @@ class CValueControl : public AbstractControl {
   Q_OBJECT
 
 public:
-  CValueControl(const QString& params, const QString& title, const QString& desc, int min, int max, int unit = 1);
+  using ValueFormatter = std::function<QString(int)>;
+  CValueControl(const QString& params, const QString& title, const QString& desc, int min, int max, int unit = 1,
+                ValueFormatter formatter = {});
 
 private slots:
   void increaseValue();
@@ -159,6 +163,7 @@ private:
   int m_min;
   int m_max;
   int m_unit;
+  ValueFormatter m_formatter;
 };
 
 class MapDataControl : public ButtonControl {

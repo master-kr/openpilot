@@ -92,8 +92,7 @@ void HomeWindow::offroadTransition(bool offroad) {
     slayout->setCurrentWidget(home);
   } else {
     slayout->setCurrentWidget(onroad);
-
-    s->show_brightness_timer = (int)(10. / 0.05);
+    s->resetOnroadBrightnessTimer();
   }
 }
 
@@ -113,8 +112,7 @@ void HomeWindow::mousePressEvent(QMouseEvent* e) {
     //sidebar->setVisible(!sidebar->isVisible() && !onroad->isMapVisible());
   //}
 
-  UIState* s = uiState();
-  s->show_brightness_timer = 100;
+  uiState()->resetOnroadBrightnessTimer();
 }
 
 void HomeWindow::mouseDoubleClickEvent(QMouseEvent* e) {

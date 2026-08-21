@@ -246,6 +246,66 @@
         <translation>주행 화면에 표시할 진단 그래프 종류를 선택합니다. 0은 그래프를 숨깁니다.</translation>
     </message>
     <message>
+        <source>Screen brightness</source>
+        <translation>화면 밝기</translation>
+    </message>
+    <message>
+        <source>0 automatically follows camera-based ambient brightness; 5–100 sets a fixed screen brightness.</source>
+        <translation>0은 카메라가 감지한 주변 밝기에 맞춰 자동 조절하며, 5~100은 화면 밝기를 고정합니다.</translation>
+    </message>
+    <message>
+        <source>Driving screen dim timer</source>
+        <translation>주행 화면 어둡게 타이머</translation>
+    </message>
+    <message>
+        <source>Dims the screen after this delay while driving. Touching the screen or a configured alert restores brightness.</source>
+        <translation>주행 중 설정 시간이 지나면 화면을 어둡게 합니다. 화면을 터치하거나 설정된 알림이 발생하면 원래 밝기로 돌아옵니다.</translation>
+    </message>
+    <message>
+        <source>Dimmed screen brightness</source>
+        <translation>어두워진 화면 밝기</translation>
+    </message>
+    <message>
+        <source>Applies this percentage to automatic brightness after the timer expires. 0 turns the backlight dark.</source>
+        <translation>타이머가 끝난 뒤 자동 밝기에 적용할 비율입니다. 0은 백라이트를 어둡게 끕니다.</translation>
+    </message>
+    <message>
+        <source>Wake screen for normal alerts</source>
+        <translation>일반 알림 시 화면 깨우기</translation>
+    </message>
+    <message>
+        <source>Enabled wakes the screen for every alert. Disabled wakes it only for user-prompt and critical alerts.</source>
+        <translation>사용은 모든 알림에서 화면을 밝히며, 미사용은 사용자 확인 및 긴급 알림에서만 화면을 밝힙니다.</translation>
+    </message>
+    <message>
+        <source>Auto</source>
+        <translation>자동</translation>
+    </message>
+    <message>
+        <source>Always on</source>
+        <translation>항상 켜짐</translation>
+    </message>
+    <message>
+        <source>Dark</source>
+        <translation>어둡게</translation>
+    </message>
+    <message>
+        <source>Enabled</source>
+        <translation>사용</translation>
+    </message>
+    <message>
+        <source>Disabled</source>
+        <translation>미사용</translation>
+    </message>
+    <message>
+        <source>s</source>
+        <translation>초</translation>
+    </message>
+    <message>
+        <source>min</source>
+        <translation>분</translation>
+    </message>
+    <message>
         <source>Scales calculated on-road display brightness; 0 keeps the calculated value.</source>
         <translation>주행 화면에서 계산된 밝기에 적용할 비율입니다. 0은 계산된 밝기를 그대로 사용합니다.</translation>
     </message>

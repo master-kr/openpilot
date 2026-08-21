@@ -70,9 +70,28 @@ static void update_state(UIState *s) {
 void ui_update_params(UIState *s) {
   auto params = Params();
   s->scene.is_metric = params.getBool("IsMetric");
-  s->show_brightness_ratio = params.getFloat("ShowCustomBrightness") / 100.;
+  s->brightness_control = std::clamp(params.getInt("BrightnessControl"), 0, 100);
+  const int screen_off = std::clamp(params.getInt("OnroadScreenOff"), -2, 10);
+  if (screen_off != s->onroad_screen_off) {
+    s->onroad_screen_off = screen_off;
+    s->resetOnroadBrightnessTimer();
+  }
+  s->onroad_screen_off_brightness = std::clamp(params.getInt("OnroadScreenOffBrightness"), 0, 100);
+  s->onroad_screen_off_event = params.getBool("OnroadScreenOffEvent");
   s->scene.map_on_left = params.getBool("NavSettingLeftSide");
 
+}
+
+void UIState::resetOnroadBrightnessTimer() {
+  if (onroad_screen_off > 0) {
+    onroad_brightness_timer = onroad_screen_off * 60 * UI_FREQ;
+  } else if (onroad_screen_off == 0) {
+    onroad_brightness_timer = 30 * UI_FREQ;
+  } else if (onroad_screen_off == -1) {
+    onroad_brightness_timer = 15 * UI_FREQ;
+  } else {
+    onroad_brightness_timer = -1;
+  }
 }
 
 void UIState::updateStatus() {
@@ -87,13 +106,33 @@ void UIState::updateStatus() {
   }
 
   // Handle onroad/offroad transition
-  if (scene.started != started_prev || sm->frame == 1) {
+  const bool transitioned = scene.started != started_prev || sm->frame == 1;
+  if (transitioned) {
     if (scene.started) {
       status = STATUS_DISENGAGED;
       scene.started_frame = sm->frame;
+      resetOnroadBrightnessTimer();
+    } else {
+      onroad_brightness_timer = -1;
     }
     started_prev = scene.started;
     emit offroadTransition(!scene.started);
+  }
+
+  if (scene.started) {
+    bool wake_for_alert = false;
+    if (sm->rcv_frame("selfdriveState") >= scene.started_frame) {
+      const auto ss = (*sm)["selfdriveState"].getSelfdriveState();
+      const bool alert_visible = ss.getAlertSize() != cereal::SelfdriveState::AlertSize::NONE;
+      wake_for_alert = alert_visible &&
+                       (onroad_screen_off_event || ss.getAlertStatus() != cereal::SelfdriveState::AlertStatus::NORMAL);
+    }
+
+    if (wake_for_alert) {
+      resetOnroadBrightnessTimer();
+    } else if (!transitioned && onroad_screen_off != -2 && onroad_brightness_timer > 0) {
+      --onroad_brightness_timer;
+    }
   }
 }
 
@@ -111,6 +150,7 @@ UIState::UIState(QObject *parent) : QObject(parent) {
   });
   prime_state = new PrimeState(this);
   language = QString::fromStdString(Params().get("LanguageSetting"));
+  ui_update_params(this);
 
   // update timer
   timer = new QTimer(this);
@@ -177,18 +217,13 @@ void Device::updateBrightness(const UIState &s) {
     clipped_brightness = std::clamp(100.0f * clipped_brightness, 10.0f, 100.0f);
   }
 
-  if (s.scene.started) {
-      if (s.show_brightness_timer > 0) {
-          UIState* s1 = uiState();
-          s1->show_brightness_timer--;
-      }
-      else clipped_brightness *= s.show_brightness_ratio;
-      //printf("show_brightness_timer: %d, clipped_brightness = %.2f ratio = %.1f\n", s.show_brightness_timer, clipped_brightness, s.show_brightness_ratio);
-  }
-
   int brightness = brightness_filter.update(clipped_brightness);
   if (!awake) {
     brightness = 0;
+  } else if (s.scene.started && s.onroad_screen_off != -2 && s.onroad_brightness_timer == 0) {
+    brightness = std::lround(brightness * s.onroad_screen_off_brightness / 100.0f);
+  } else if (s.brightness_control > 0) {
+    brightness = std::lround(s.brightness_control * 0.99f);
   }
 
   if (brightness != last_brightness) {
