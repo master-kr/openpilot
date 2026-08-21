@@ -2663,7 +2663,7 @@ public:
         const float rotation = rotation_deg * 3.14159265f / 180.0f;
         const float cos_a = std::cos(rotation);
         const float sin_a = std::sin(rotation);
-        const auto rotated = [x, icon_y, cos_a, sin_a](float px, float py) {
+        const auto rotated = [x, cos_a, sin_a](float px, float py) {
           return QPointF(x + px * cos_a - py * sin_a, icon_y + px * sin_a + py * cos_a);
         };
 
