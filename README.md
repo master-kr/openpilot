@@ -10,6 +10,10 @@ In accordance with the amended **Korean Motor Vehicle Management Act** (effectiv
 This software is provided **for research and educational use only**.  
 The developer does **not take any responsibility** for real-world installation or usage.
 
+## `c3-wip-fix` 변경 내용
+
+이 브랜치에 반영된 개인 수정 사항과 확인 상태는 [`C3_WIP_FIX_CHANGELOG_KO.md`](C3_WIP_FIX_CHANGELOG_KO.md)에서 확인할 수 있습니다.
+
 **Carrotpilot에서 사용하는 차량(현대,기아)에 따라 Harness가 다릅니다..**
 - CAN통신차량: Comma 정품 Harness, Camera에 연결
 - CANFD-일반차량: Comma정품 Harness, Camera에 연결
