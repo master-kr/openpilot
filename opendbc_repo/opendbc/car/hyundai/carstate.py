@@ -4,7 +4,7 @@ import math
 import ast
 
 from opendbc.can import CANDefine, CANParser
-from opendbc.car import Bus, create_button_events, structs, DT_CTRL
+from opendbc.car import Bus, create_button_events, gen_empty_fingerprint, structs, DT_CTRL
 from opendbc.car.common.conversions import Conversions as CV
 from opendbc.car.hyundai.hyundaicanfd import CanBus
 from opendbc.car.hyundai.values import HyundaiFlags, CAR, DBC, Buttons, CarControllerParams, HyundaiExtFlags
@@ -138,16 +138,26 @@ class CarState(CarStateBase):
     #self.lf_lateral = 0
     #self.rf_lateral = 0
 
+    fingerprints = gen_empty_fingerprint()
     fingerprints_str = Params().get("FingerPrints")
     try:
-      fingerprints = ast.literal_eval(fingerprints_str) if fingerprints_str else [{}, {}, {}]
-      if (not isinstance(fingerprints, (list, tuple)) or len(fingerprints) < 3 or
-          not all(isinstance(bus_fingerprint, dict) for bus_fingerprint in fingerprints[:3])):
-        fingerprints = [{}, {}, {}]
+      parsed_fingerprints = ast.literal_eval(fingerprints_str) if fingerprints_str else {}
+      if isinstance(parsed_fingerprints, dict):
+        fingerprint_items = parsed_fingerprints.items()
+      elif isinstance(parsed_fingerprints, (list, tuple)):
+        # Accept older cached list-form fingerprints while normalizing them to
+        # the eight-bus dictionary returned by gen_empty_fingerprint().
+        fingerprint_items = enumerate(parsed_fingerprints)
+      else:
+        fingerprint_items = ()
+      for bus, bus_fingerprint in fingerprint_items:
+        if isinstance(bus, int) and bus >= 0 and isinstance(bus_fingerprint, dict):
+          fingerprints[bus] = bus_fingerprint
     except (SyntaxError, ValueError, TypeError):
-      # FingerPrints is normally populated before CarState construction. Keep
-      # startup safe if the parameter is missing or partially written.
-      fingerprints = [{}, {}, {}]
+      # FingerPrints is normally populated before CarState construction. The
+      # empty eight-bus dictionary keeps both single- and multi-Panda offsets
+      # safe if the parameter is missing or partially written.
+      pass
     #print("fingerprints =", fingerprints)
     self.HAS_LFA_BUTTON = True if 913 in fingerprints[0] else False
     self.CRUISE_BUTTON_ALT = True if 1007 in fingerprints[0] else False

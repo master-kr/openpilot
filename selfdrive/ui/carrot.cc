@@ -2616,30 +2616,44 @@ public:
         ui_draw_text(s, x, 82, utf8.constData(), 48, COLOR_WHITE, BOLD, 2.0f, 5.0f);
     }
     void drawSteeringAngle(const UIState* s) {
-        const float deadzone = 1.0f;
-        const bool left = steeringAngleDeg < -deadzone;
-        const bool right = steeringAngleDeg > deadzone;
+        // Match the color to the value the driver actually sees: only a value
+        // rounded to 0.0 is neutral. Every displayed non-zero angle gets its
+        // direction label and color.
+        const float raw_angle = std::isfinite(steeringAngleDeg) ? steeringAngleDeg : 0.0f;
+        const float display_angle = std::round(std::fabs(raw_angle) * 10.0f) / 10.0f;
+        const bool neutral = display_angle == 0.0f;
+        // Hyundai CarState already normalizes the raw sensor sign. Keep the
+        // established C3 UI mapping: negative is L and positive is R.
+        const bool left = !neutral && raw_angle < 0.0f;
+        const bool right = !neutral && raw_angle > 0.0f;
         const NVGcolor color = left ? nvgRGBA(70, 150, 255, 255) :
-                               right ? nvgRGBA(255, 160, 40, 255) : COLOR_WHITE_ALPHA(220);
+                               right ? nvgRGBA(255, 160, 40, 255) : COLOR_WHITE;
+        // Align with the upper TPMS block (bx = fb_w - 125) and place the
+        // steering value below its second pressure row (ending near y=200).
         const int x = s->fb_w - 125;
-        const int y = 320;
+        const int icon_y = 270;
+        const int text_y = 355;
 
-        // Compact steering-wheel icon, positioned directly below the upper TPMS block.
+        // The centered RoadName remains unobstructed. This position also stays
+        // well above the optional lower TPMS block.
         nvgBeginPath(s->vg);
-        nvgCircle(s->vg, x - 42, y - 15, 31);
-        nvgMoveTo(s->vg, x - 70, y - 23);
-        nvgLineTo(s->vg, x - 14, y - 23);
-        nvgMoveTo(s->vg, x - 42, y - 15);
-        nvgLineTo(s->vg, x - 42, y + 14);
+        nvgCircle(s->vg, x, icon_y, 36);
+        nvgMoveTo(s->vg, x - 32, icon_y - 9);
+        nvgLineTo(s->vg, x + 32, icon_y - 9);
+        nvgMoveTo(s->vg, x, icon_y);
+        nvgLineTo(s->vg, x, icon_y + 33);
         nvgStrokeColor(s->vg, color);
         nvgStrokeWidth(s->vg, 7.0f);
         nvgStroke(s->vg);
 
         char angle[32];
-        const char *direction = left ? "L" : right ? "R" : "";
-        snprintf(angle, sizeof(angle), "%s %.1f°", direction, std::fabs(steeringAngleDeg));
+        if (neutral) {
+          snprintf(angle, sizeof(angle), "0.0°");
+        } else {
+          snprintf(angle, sizeof(angle), "%c %.1f°", left ? 'L' : 'R', display_angle);
+        }
         nvgTextAlign(s->vg, NVG_ALIGN_CENTER | NVG_ALIGN_BOTTOM);
-        ui_draw_text(s, x + 35, y, angle, 42, color, BOLD, 2.0f, 5.0f);
+        ui_draw_text(s, x, text_y, angle, 46, color, BOLD, 2.0f, 5.0f);
     }
     void drawConnInfo(const UIState* s) {
         int y = 10;
@@ -3184,6 +3198,17 @@ class BorderDrawer {
 protected:
     float   a_ego_width = 0.0;
     float steering_angle_pos = 0.0;
+    QString processStatus(const SubMaster& sm, const char* process_name) const {
+        if (sm.rcv_frame("managerState") == 0) return "?";
+        for (const auto process : sm["managerState"].getManagerState().getProcesses()) {
+            if (process.getName() == process_name) {
+                if (process.getRunning()) return "RUN";
+                if (process.getShouldBeRunning()) return QString("EXIT%1").arg(process.getExitCode());
+                return "STOP";
+            }
+        }
+        return "N/A";
+    }
     NVGcolor get_tpms_color(float tpms) {
         if (tpms < 5 || tpms > 60) // N/A
             return COLOR_GREEN;
@@ -3291,13 +3316,33 @@ public:
 
         // bottom_right
         Params params_memory = Params("/dev/shm/params");
-        if (false && carrot_man_debug[0] != 0 && params.getInt("ShowDebugUI") > 0) {
-            strcpy(bottom_right, carrot_man_debug);
+        if (params.getInt("ShowDebugUI") > 0) {
+            const QString card_status = processStatus(sm, "card");
+            const QString selfdrive_status = processStatus(sm, "selfdrived");
+            const QString pandad_status = processStatus(sm, "pandad");
+            const bool car_state_alive = sm.alive("carState");
+            const bool selfdrive_state_alive = sm.alive("selfdriveState");
+            const bool car_params_ready = !params.get("CarParams").empty();
+            const bool controls_ready = params.getBool("ControlsReady");
+            QString cause = "STARTING";
+            if (pandad_status.startsWith("EXIT")) cause = "PANDAD_FAIL";
+            else if (card_status.startsWith("EXIT")) cause = "CARD_FAIL";
+            else if (selfdrive_status.startsWith("EXIT")) cause = "SELFDRIVE_FAIL";
+            else if (card_status == "RUN" && !car_params_ready) cause = "WAIT_CAN/FP";
+            else if (car_params_ready && !car_state_alive) cause = "NO_CARSTATE";
+            else if (!selfdrive_state_alive) cause = "NO_SELFDRIVE_STATE";
+            else cause = "OK";
+            str.sprintf("%s | card:%s self:%s panda:%s | CS:%d SD:%d CP:%d CR:%d",
+                        cause.toUtf8().constData(),
+                        card_status.toUtf8().constData(), selfdrive_status.toUtf8().constData(),
+                        pandad_status.toUtf8().constData(), car_state_alive, selfdrive_state_alive,
+                        car_params_ready, controls_ready);
+            snprintf(bottom_right, sizeof(bottom_right), "%s", str.toUtf8().constData());
         }
         else {
             QString ipAddress = QString::fromStdString(params_memory.get("NetworkAddress"));
             //extern QString gitBranch;
-            sprintf(bottom_right, "%s", ipAddress.toStdString().c_str());
+            snprintf(bottom_right, sizeof(bottom_right), "%s", ipAddress.toUtf8().constData());
         }
 
         int text_margin = 30;
