@@ -2,7 +2,6 @@ from cereal import car, log
 import cereal.messaging as messaging
 from opendbc.car import DT_CTRL, structs
 from opendbc.car.interfaces import MAX_CTRL_SPEED
-from opendbc.car.hyundai.carstate import PREV_BUTTON_SAMPLES as HYUNDAI_PREV_BUTTON_SAMPLES
 from opendbc.car.volkswagen.values import CarControllerParams as VWCarControllerParams
 
 from openpilot.selfdrive.selfdrived.events import Events, ET
@@ -48,7 +47,6 @@ class CarSpecificEvents:
     self.carrotCruise_prev = False
     self.tesla_lkas_button_prev = False
     self.hyundai_cancel_latched = False
-    self.hyundai_pcm_enable_frames = 0
 
   def update_params(self):
     if self.frame % 100 == 0:
@@ -154,39 +152,34 @@ class CarSpecificEvents:
     elif self.CP.brand == 'hyundai':
       # On some newer model years, the CANCEL button acts as a pause/resume button based on the PCM state
       # To avoid re-engaging when openpilot cancels, check user engagement intention via buttons
-      # Only a new RES/SET press is accepted as engagement intent after CANCEL.
+      # Some Hyundai CAN-FD cars use the same physical button for pause and
+      # resume. Treat it as CANCEL only while PCM/openpilot was engaged; when
+      # already disengaged it is fresh resume intent and must unblock the next
+      # stock PCM rising edge.
       cancel_pressed = any(ev.type == ButtonType.cancel and ev.pressed for ev in CS.buttonEvents)
-      resume_pressed = any(ev.type in (ButtonType.accelCruise, ButtonType.decelCruise) and ev.pressed
-                           for ev in CS.buttonEvents)
-      if self.CP.pcmCruise and cancel_pressed:
-        self.hyundai_cancel_latched = True
-        self.hyundai_pcm_enable_frames = 0
-      elif self.CP.pcmCruise and resume_pressed:
-        # A fresh RES/SET press is explicit user intent. Keep pcmDisable from
-        # immediately undoing buttonEnable while SCC_CONTROL reports the stock
-        # PCM response on a following CAN frame.
-        self.hyundai_cancel_latched = False
-        self.hyundai_pcm_enable_frames = HYUNDAI_PREV_BUTTON_SAMPLES
+      set_resume_pressed = any(ev.type in (ButtonType.accelCruise, ButtonType.decelCruise) and ev.pressed
+                               for ev in CS.buttonEvents)
+      main_pressed = any(ev.type == ButtonType.mainCruise and ev.pressed for ev in CS.buttonEvents)
+      # Use the previous PCM state so a resume button whose SCC acknowledgement
+      # arrives in the same frame is not misclassified as a new cancellation.
+      cancel_intent = cancel_pressed and (CC.enabled or CS_prev.cruiseState.enabled)
+      resume_on_cancel_button = cancel_pressed and not cancel_intent
+      enable_intent = set_resume_pressed or main_pressed or resume_on_cancel_button
 
-      if self.CP.pcmCruise and CS.cruiseState.enabled:
-        self.hyundai_pcm_enable_frames = 0
+      if self.CP.pcmCruise and cancel_intent:
+        self.hyundai_cancel_latched = True
+      elif self.CP.pcmCruise and enable_intent:
+        self.hyundai_cancel_latched = False
 
       events = self.create_common_events(CS, CS_prev, extra_gears=(GearShifter.sport, GearShifter.manumatic),
                                          pcm_enable=self.CP.pcmCruise,
                                          allow_enable=not self.hyundai_cancel_latched,
-                                         allow_button_cancel=False,
-                                         allow_pcm_disable=self.hyundai_pcm_enable_frames == 0)
+                                         allow_button_cancel=False)
       # Hyundai pcmCruise previously suppressed the generic cancel handler.
       # Emit exactly one immediate event on the physical press without also
       # inheriting the generic "CANCEL while parked" shutdown side effect.
-      if self.CP.pcmCruise and cancel_pressed:
+      if self.CP.pcmCruise and cancel_intent:
         events.add(EventName.buttonCancel)
-      # CarrotPilot accepts the physical SET/RES intent immediately. The short
-      # bounded window above bridges only the stock PCM acknowledgement delay;
-      # if SCC never enables, pcmDisable is restored automatically.
-      if self.CP.pcmCruise and resume_pressed and not self.hyundai_cancel_latched:
-        events.add(EventName.buttonEnable)
-      self.hyundai_pcm_enable_frames = max(0, self.hyundai_pcm_enable_frames - 1)
 
       # low speed steer alert hysteresis logic (only for cars with steer cut off above 10 m/s)
       if CS.vEgo < (self.CP.minSteerSpeed + 2.) and self.CP.minSteerSpeed > 10.:
@@ -221,7 +214,7 @@ class CarSpecificEvents:
     return events
 
   def create_common_events(self, CS: structs.CarState, CS_prev: car.CarState, extra_gears=None, pcm_enable=True,
-                           allow_enable=True, allow_button_cancel=True, allow_pcm_disable=True):
+                           allow_enable=True, allow_button_cancel=True):
     events = Events()
 
     if CS.doorOpen and not self.mute_door:
@@ -305,7 +298,7 @@ class CarSpecificEvents:
     if pcm_enable:
       if CS.cruiseState.enabled and not CS_prev.cruiseState.enabled and allow_enable:
         events.add(EventName.pcmEnable)
-      elif not CS.cruiseState.enabled and allow_pcm_disable:
+      elif not CS.cruiseState.enabled:
         events.add(EventName.pcmDisable)
 
 
