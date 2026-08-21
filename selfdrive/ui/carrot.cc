@@ -2597,7 +2597,7 @@ public:
         char elapsed_str[32];
         snprintf(elapsed_str, sizeof(elapsed_str), "%d:%02d", elapsed / 60, elapsed % 60);
         const int x = s->fb_w / 2;
-        const int y = 176;
+        const int y = 202;
         nvgFontFace(s->vg, BOLD);
         nvgFontSize(s->vg, 54);
         float stop_bounds[4] = {};
@@ -2614,18 +2614,30 @@ public:
     }
     void drawRoadName(const UIState* s) {
         if (!params.getBool("MapEnable") || mapRoadName.isEmpty()) return;
-        QString text = mapRoadName.simplified();
-        if (text.size() > 24) text = text.left(23) + QStringLiteral("…");
-        const QByteArray utf8 = text.toUtf8();
+        const QString source = mapRoadName.simplified();
+        QString text = source;
         nvgFontFace(s->vg, BOLD);
         nvgFontSize(s->vg, 62);
         float bounds[4] = {};
+        const float max_text_width = s->fb_w * 0.50f;
+        QByteArray utf8;
+        while (!text.isEmpty()) {
+          const QString candidate = text + (text.size() < source.size() ? QStringLiteral("…") : QString());
+          utf8 = candidate.toUtf8();
+          nvgTextBounds(s->vg, 0, 0, utf8.constData(), nullptr, bounds);
+          if (bounds[2] - bounds[0] <= max_text_width) {
+            text = candidate;
+            break;
+          }
+          text.chop(1);
+        }
+        utf8 = text.toUtf8();
         nvgTextBounds(s->vg, 0, 0, utf8.constData(), nullptr, bounds);
-        const int width = std::min((int)(bounds[2] - bounds[0]) + 50, (int)(s->fb_w * 0.62f));
+        const int width = std::min((int)(bounds[2] - bounds[0]) + 50, (int)(s->fb_w * 0.54f));
         const int x = s->fb_w / 2;
-        ui_fill_rect(s->vg, {x - width / 2, 24, width, 88}, COLOR_BLACK_ALPHA(130), 18);
+        ui_fill_rect(s->vg, {x - width / 2, 50, width, 90}, COLOR_BLACK_ALPHA(130), 18);
         nvgTextAlign(s->vg, NVG_ALIGN_CENTER | NVG_ALIGN_BOTTOM);
-        ui_draw_text(s, x, 96, utf8.constData(), 62, COLOR_WHITE, BOLD, 2.0f, 5.0f);
+        ui_draw_text(s, x, 124, utf8.constData(), 62, COLOR_WHITE, BOLD, 2.0f, 5.0f);
     }
     void drawSteeringAngle(const UIState* s) {
         // Match the color to the value the driver actually sees: only a value
@@ -2644,9 +2656,9 @@ public:
         // Align with the upper TPMS block (bx = fb_w - 125) and place the
         // steering value below its second pressure row (ending near y=200).
         const int x = s->fb_w - 125;
-        const int icon_y = 282;
-        const int text_y = 400;
-        const float radius = 50.0f;
+        const int icon_y = 292;
+        const int text_y = 414;
+        const float radius = 52.0f;
         const float rotation_deg = neutral ? 0.0f : std::clamp(-raw_angle, -90.0f, 90.0f);
         const float rotation = rotation_deg * 3.14159265f / 180.0f;
         const float cos_a = std::cos(rotation);
@@ -2663,10 +2675,10 @@ public:
         nvgStrokeWidth(s->vg, 9.0f);
         nvgStroke(s->vg);
 
-        const QPointF left_spoke = rotated(-44.0f, -12.0f);
-        const QPointF right_spoke = rotated(44.0f, -12.0f);
+        const QPointF left_spoke = rotated(-46.0f, -12.0f);
+        const QPointF right_spoke = rotated(46.0f, -12.0f);
         const QPointF hub = rotated(0.0f, 0.0f);
-        const QPointF lower_spoke = rotated(0.0f, 45.0f);
+        const QPointF lower_spoke = rotated(0.0f, 47.0f);
         nvgBeginPath(s->vg);
         nvgMoveTo(s->vg, left_spoke.x(), left_spoke.y());
         nvgLineTo(s->vg, right_spoke.x(), right_spoke.y());
@@ -2680,7 +2692,8 @@ public:
         if (neutral) {
           snprintf(angle, sizeof(angle), "0.0°");
         } else {
-          snprintf(angle, sizeof(angle), "%c %.1f°", left ? 'L' : 'R', display_angle);
+          const float signed_angle = left ? display_angle : -display_angle;
+          snprintf(angle, sizeof(angle), "%+.1f° %c", signed_angle, left ? 'L' : 'R');
         }
         nvgTextAlign(s->vg, NVG_ALIGN_CENTER | NVG_ALIGN_BOTTOM);
         ui_draw_text(s, x, text_y, angle, 54, color, BOLD, 2.0f, 5.0f);
