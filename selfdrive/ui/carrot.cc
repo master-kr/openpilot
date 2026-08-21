@@ -1974,6 +1974,9 @@ public:
     QString szPosRoadName = "";
     QString mapRoadName = "";
     float steeringAngleDeg = 0.0f;
+    float gpsSpeedKph = 0.0f;
+    bool gpsSpeedValid = false;
+    int gpsSpeedLimitKph = 0;
     bool standstill = false;
     double standstillStartedAt = 0.0;
     double standstillElapsed = 0.0;
@@ -2015,6 +2018,17 @@ public:
         v_cruise = car_state.getVCruiseCluster();
         v_ego = car_state.getVEgoCluster();
         steeringAngleDeg = car_state.getSteeringAngleDeg();
+        const char* gps_service = s->ublox_avaliable ? "gpsLocationExternal" : "gpsLocation";
+        gpsSpeedValid = false;
+        if (sm.alive(gps_service) && sm.valid(gps_service)) {
+          const auto gps = s->ublox_avaliable ? sm[gps_service].getGpsLocationExternal() : sm[gps_service].getGpsLocation();
+          const float speed_mps = gps.getSpeed();
+          gpsSpeedValid = gps.getHasFix() && std::isfinite(speed_mps) && speed_mps >= 0.0f;
+          if (gpsSpeedValid) {
+            gpsSpeedKph = speed_mps * 3.6f;
+            if (gpsSpeedKph < 1.5f) gpsSpeedKph = 0.0f;
+          }
+        }
         const double now = millis_since_boot();
         if (car_state.getStandstill()) {
           if (!standstill) standstillStartedAt = now;
@@ -2040,6 +2054,8 @@ public:
             xSpdLimit = carrot_man.getXSpdLimit();
             xSignType = carrot_man.getXSpdType();
             nGoPosDist = carrot_man.getNGoPosDist();
+            gpsSpeedLimitKph = (xSpdLimit > 0 && xSignType != 22) ? xSpdLimit :
+                               ((nRoadLimitSpeed > 0) ? nRoadLimitSpeed : 0);
             QString atcType = QString::fromStdString(carrot_man.getAtcType());
             trafficState_carrot = carrot_man.getTrafficState();
             const auto velocity = model.getVelocity();
@@ -2087,6 +2103,9 @@ public:
           carrot_man_debug[0] = 0;
           szPosRoadName = "";
           nRoadLimitSpeed = 30;
+          xSpdLimit = 0;
+          xSignType = -1;
+          gpsSpeedLimitKph = 0;
           nGoPosDist = 0;
 		    }
 
@@ -2585,6 +2604,40 @@ public:
                 ui_draw_text(s, x, y + 70, str, 60, COLOR_WHITE, BOLD, 3.0f, 8.0f);
                 nav_y += 70;
             }
+            const int gps_y = y + ((show_datetime == 1 || show_datetime == 3) ? 128 : 70);
+            // Match the date line so the independent GPS speed remains legible.
+            constexpr float gps_font_size = 60.0f;
+            const char* gps_label = "GPS";
+            char gps_value[32];
+            NVGcolor gps_value_color = COLOR_WHITE;
+            if (gpsSpeedValid) {
+              const int gps_display_speed = (int)std::lround(gpsSpeedKph);
+              snprintf(gps_value, sizeof(gps_value), "%d km/h", gps_display_speed);
+              if (gpsSpeedLimitKph > 0) {
+                const int speed_over_limit = gps_display_speed - gpsSpeedLimitKph;
+                if (speed_over_limit >= 10) {
+                  gps_value_color = COLOR_RED;
+                } else if (speed_over_limit > 0) {
+                  gps_value_color = COLOR_ORANGE;
+                }
+              }
+            } else {
+              snprintf(gps_value, sizeof(gps_value), "--");
+            }
+            nvgTextAlign(s->vg, NVG_ALIGN_LEFT | NVG_ALIGN_BOTTOM);
+            nvgFontFace(s->vg, BOLD);
+            nvgFontSize(s->vg, gps_font_size);
+            float gps_label_bounds[4] = {};
+            float gps_value_bounds[4] = {};
+            nvgTextBounds(s->vg, 0, 0, gps_label, nullptr, gps_label_bounds);
+            nvgTextBounds(s->vg, 0, 0, gps_value, nullptr, gps_value_bounds);
+            constexpr float gps_gap = 12.0f;
+            const float gps_width = gps_label_bounds[2] - gps_label_bounds[0] + gps_gap +
+                                    gps_value_bounds[2] - gps_value_bounds[0];
+            const float gps_x = x - gps_width / 2.0f;
+            ui_draw_text(s, gps_x, gps_y, gps_label, gps_font_size, COLOR_GREEN, BOLD, 2.0f, 4.0f);
+            ui_draw_text(s, gps_x + gps_label_bounds[2] - gps_label_bounds[0] + gps_gap,
+                         gps_y, gps_value, gps_font_size, gps_value_color, BOLD, 2.0f, 4.0f);
             if (false && szPosRoadName.size() > 0) {
                 nvgTextAlign(s->vg, NVG_ALIGN_RIGHT | NVG_ALIGN_BOTTOM);
                 ui_draw_text(s, x, nav_y, szPosRoadName.toStdString().c_str(), 35, COLOR_WHITE, BOLD, 3.0f, 8.0f);
@@ -2616,8 +2669,8 @@ public:
     }
     void drawRoadName(const UIState* s) {
         if (!params.getBool("MapEnable") || mapRoadName.isEmpty()) return;
-        constexpr float font_size = 100.0f;
-        constexpr float padding = 24.0f;
+        constexpr float font_size = 88.0f;
+        constexpr float padding = 20.0f;
         constexpr float text_y = 126.0f;
         const QString source = mapRoadName.simplified();
         QString text = source;
@@ -2676,32 +2729,78 @@ public:
         // steering range instead of stopping at 90 degrees.
         const float rotation_deg = neutral ? 0.0f : -raw_angle;
         const float rotation = rotation_deg * 3.14159265f / 180.0f;
-        const float cos_a = std::cos(rotation);
-        const float sin_a = std::sin(rotation);
-        const auto rotated = [x, cos_a, sin_a](float px, float py) {
-          return QPointF(x + px * cos_a - py * sin_a, icon_y + px * sin_a + py * cos_a);
-        };
+        // A rotating D-shaped rim, broad two-spoke center, and four-dot hub
+        // make the direction visible even after a full turn while retaining an
+        // IONIQ 5-inspired silhouette.
+        nvgSave(s->vg);
+        nvgTranslate(s->vg, x, icon_y);
+        nvgRotate(s->vg, rotation);
 
-        // Rotate the inner wheel spokes with the measured steering angle. The
-        // outer ring remains centered below the upper TPMS block.
         nvgBeginPath(s->vg);
-        nvgCircle(s->vg, x, icon_y, radius);
+        nvgMoveTo(s->vg, 0.0f, -radius);
+        nvgBezierTo(s->vg, -35.0f, -radius, -radius, -38.0f, -radius, -5.0f);
+        nvgBezierTo(s->vg, -radius, 23.0f, -43.0f, 42.0f, -27.0f, 51.0f);
+        nvgLineTo(s->vg, 27.0f, 51.0f);
+        nvgBezierTo(s->vg, 43.0f, 42.0f, radius, 23.0f, radius, -5.0f);
+        nvgBezierTo(s->vg, radius, -38.0f, 35.0f, -radius, 0.0f, -radius);
+        nvgClosePath(s->vg);
+        nvgStrokeColor(s->vg, COLOR_BLACK_ALPHA(220));
+        nvgStrokeWidth(s->vg, 16.0f);
+        nvgStroke(s->vg);
         nvgStrokeColor(s->vg, color);
-        nvgStrokeWidth(s->vg, 9.0f);
+        nvgStrokeWidth(s->vg, 10.0f);
         nvgStroke(s->vg);
 
-        const QPointF left_spoke = rotated(-46.0f, -12.0f);
-        const QPointF right_spoke = rotated(46.0f, -12.0f);
-        const QPointF hub = rotated(0.0f, 0.0f);
-        const QPointF lower_spoke = rotated(0.0f, 47.0f);
+        // Wide left/right spokes are filled shapes instead of thin lines.
         nvgBeginPath(s->vg);
-        nvgMoveTo(s->vg, left_spoke.x(), left_spoke.y());
-        nvgLineTo(s->vg, right_spoke.x(), right_spoke.y());
-        nvgMoveTo(s->vg, hub.x(), hub.y());
-        nvgLineTo(s->vg, lower_spoke.x(), lower_spoke.y());
-        nvgStrokeColor(s->vg, color);
-        nvgStrokeWidth(s->vg, 9.0f);
+        nvgMoveTo(s->vg, -52.0f, -13.0f);
+        nvgLineTo(s->vg, -49.0f, 8.0f);
+        nvgLineTo(s->vg, -20.0f, 17.0f);
+        nvgLineTo(s->vg, -20.0f, -7.0f);
+        nvgClosePath(s->vg);
+        nvgMoveTo(s->vg, 52.0f, -13.0f);
+        nvgLineTo(s->vg, 49.0f, 8.0f);
+        nvgLineTo(s->vg, 20.0f, 17.0f);
+        nvgLineTo(s->vg, 20.0f, -7.0f);
+        nvgClosePath(s->vg);
+        nvgFillColor(s->vg, color);
+        nvgFill(s->vg);
+        nvgStrokeColor(s->vg, COLOR_BLACK_ALPHA(180));
+        nvgStrokeWidth(s->vg, 3.0f);
         nvgStroke(s->vg);
+
+        // Center airbag hub with the IONIQ 5 four-dot signature.
+        nvgBeginPath(s->vg);
+        nvgRoundedRect(s->vg, -23.0f, -17.0f, 46.0f, 37.0f, 12.0f);
+        nvgFillColor(s->vg, COLOR_BLACK_ALPHA(210));
+        nvgFill(s->vg);
+        nvgStrokeColor(s->vg, color);
+        nvgStrokeWidth(s->vg, 4.0f);
+        nvgStroke(s->vg);
+        for (int i = 0; i < 4; ++i) {
+          nvgBeginPath(s->vg);
+          nvgCircle(s->vg, -9.0f + i * 6.0f, 2.0f, 1.8f);
+          nvgFillColor(s->vg, color);
+          nvgFill(s->vg);
+        }
+
+        // Bright twelve-o'clock marker and subtle lower spoke improve rotation
+        // readability without adding another dashboard color.
+        nvgBeginPath(s->vg);
+        nvgMoveTo(s->vg, -7.0f, -radius + 1.0f);
+        nvgLineTo(s->vg, 7.0f, -radius + 1.0f);
+        nvgStrokeColor(s->vg, COLOR_WHITE_ALPHA(220));
+        nvgStrokeWidth(s->vg, 4.0f);
+        nvgStroke(s->vg);
+        nvgBeginPath(s->vg);
+        nvgMoveTo(s->vg, -8.0f, 19.0f);
+        nvgLineTo(s->vg, -14.0f, 43.0f);
+        nvgLineTo(s->vg, 14.0f, 43.0f);
+        nvgLineTo(s->vg, 8.0f, 19.0f);
+        nvgClosePath(s->vg);
+        nvgFillColor(s->vg, color);
+        nvgFill(s->vg);
+        nvgRestore(s->vg);
 
         char angle[32];
         if (neutral) {
