@@ -2593,33 +2593,40 @@ public:
     }
     void drawStopTimer(const UIState* s) {
         if (!standstill) return;
+        constexpr float font_size = 100.0f;
         const int elapsed = std::max(0, (int)standstillElapsed);
         char elapsed_str[32];
         snprintf(elapsed_str, sizeof(elapsed_str), "%d:%02d", elapsed / 60, elapsed % 60);
         const int x = s->fb_w / 2;
-        const int y = 202;
+        // Keep the enlarged timer clearly separated from the road-name box.
+        const int y = 286;
+        nvgTextAlign(s->vg, NVG_ALIGN_LEFT | NVG_ALIGN_BOTTOM);
         nvgFontFace(s->vg, BOLD);
-        nvgFontSize(s->vg, 60);
+        nvgFontSize(s->vg, font_size);
         float stop_bounds[4] = {};
         float time_bounds[4] = {};
         nvgTextBounds(s->vg, 0, 0, "STOP", nullptr, stop_bounds);
         nvgTextBounds(s->vg, 0, 0, elapsed_str, nullptr, time_bounds);
-        const float gap = 12.0f;
+        const float gap = 20.0f;
         const float total_width = stop_bounds[2] - stop_bounds[0] + gap + time_bounds[2] - time_bounds[0];
         const float start_x = x - total_width / 2.0f;
-        nvgTextAlign(s->vg, NVG_ALIGN_LEFT | NVG_ALIGN_BOTTOM);
-        ui_draw_text(s, start_x, y, "STOP", 60, COLOR_ORANGE, BOLD, 3.0f, 6.0f);
+        ui_draw_text(s, start_x, y, "STOP", font_size, COLOR_ORANGE, BOLD, 3.0f, 6.0f);
         ui_draw_text(s, start_x + stop_bounds[2] - stop_bounds[0] + gap, y,
-                     elapsed_str, 60, COLOR_WHITE, BOLD, 3.0f, 6.0f);
+                     elapsed_str, font_size, COLOR_WHITE, BOLD, 3.0f, 6.0f);
     }
     void drawRoadName(const UIState* s) {
         if (!params.getBool("MapEnable") || mapRoadName.isEmpty()) return;
+        constexpr float font_size = 100.0f;
+        constexpr float padding = 24.0f;
+        constexpr float text_y = 126.0f;
         const QString source = mapRoadName.simplified();
         QString text = source;
+        nvgTextAlign(s->vg, NVG_ALIGN_CENTER | NVG_ALIGN_BOTTOM);
         nvgFontFace(s->vg, BOLD);
-        nvgFontSize(s->vg, 60);
+        nvgFontSize(s->vg, font_size);
         float bounds[4] = {};
-        const float max_text_width = s->fb_w * 0.50f;
+        const float max_box_width = s->fb_w * 0.54f;
+        const float max_text_width = max_box_width - 2.0f * padding;
         QByteArray utf8;
         while (!text.isEmpty()) {
           const QString candidate = text + (text.size() < source.size() ? QStringLiteral("…") : QString());
@@ -2632,12 +2639,16 @@ public:
           text.chop(1);
         }
         utf8 = text.toUtf8();
-        nvgTextBounds(s->vg, 0, 0, utf8.constData(), nullptr, bounds);
-        const int width = std::min((int)(bounds[2] - bounds[0]) + 50, (int)(s->fb_w * 0.54f));
         const int x = s->fb_w / 2;
-        ui_fill_rect(s->vg, {x - width / 2, 50, width, 90}, COLOR_BLACK_ALPHA(130), 18);
-        nvgTextAlign(s->vg, NVG_ALIGN_CENTER | NVG_ALIGN_BOTTOM);
-        ui_draw_text(s, x, 124, utf8.constData(), 60, COLOR_WHITE, BOLD, 2.0f, 5.0f);
+        // ui_draw_text offsets the supplied Y coordinate by six pixels. Measure
+        // at that exact position so all four sides receive identical padding.
+        nvgTextBounds(s->vg, x, text_y + 6.0f, utf8.constData(), nullptr, bounds);
+        const int box_x = (int)std::floor(bounds[0] - padding);
+        const int box_y = (int)std::floor(bounds[1] - padding);
+        const int box_w = (int)std::ceil(bounds[2] - bounds[0] + 2.0f * padding);
+        const int box_h = (int)std::ceil(bounds[3] - bounds[1] + 2.0f * padding);
+        ui_fill_rect(s->vg, {box_x, box_y, box_w, box_h}, COLOR_BLACK_ALPHA(130), 18);
+        ui_draw_text(s, x, text_y, utf8.constData(), font_size, COLOR_WHITE, BOLD, 2.0f, 5.0f);
     }
     void drawSteeringAngle(const UIState* s) {
         // Match the color to the value the driver actually sees: only a value
