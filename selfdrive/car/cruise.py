@@ -184,6 +184,7 @@ class VCruiseCarrot:
     self._soft_hold_active = 0
     self._cruise_ready = False
     self._cruise_cancel_state = False
+    self._brake_resume_pending = False
     self._pause_auto_speed_up = False
     self._activate_cruise = 0
     self._lat_enabled = self.params.get_int("AutoEngage") > 0
@@ -491,6 +492,7 @@ class VCruiseCarrot:
     v_cruise_kph, button_type, long_pressed = self._carrot_command(v_cruise_kph, button_type, long_pressed)
 
     resuming_from_cancel = self._cruise_cancel_state and button_type == ButtonType.accelCruise
+    resuming_from_brake = self._brake_resume_pending and button_type == ButtonType.accelCruise
     if button_type in [ButtonType.accelCruise, ButtonType.decelCruise]:
       self._paddle_decel_active = False
       if self.autoCruiseControl_cancel_timer > 0:
@@ -507,6 +509,17 @@ class VCruiseCarrot:
         if resuming_from_cancel:
           # RES after CANCEL restores the saved speed verbatim. CruiseButtonMode
           # speed stepping must not turn a saved 100 km/h into 101/110 km/h.
+          self._soft_hold_active = 0
+          self._brake_resume_pending = False
+          self._v_cruise_kph_at_brake = 0
+        elif resuming_from_brake:
+          # controlsd reports CC.enabled one frame after the physical RES input.
+          # Restore the pre-brake set speed before checking CC.enabled so RES is
+          # deterministic regardless of that frame ordering.
+          if self._v_cruise_kph_at_brake > 0:
+            v_cruise_kph = self._v_cruise_kph_at_brake
+          self._brake_resume_pending = False
+          self._v_cruise_kph_at_brake = 0
           self._soft_hold_active = 0
         elif self._soft_hold_active > 0:
           self._soft_hold_active = 0
@@ -549,6 +562,7 @@ class VCruiseCarrot:
           self.carrot_cruise_active = True
           #self.events.append(EventName.audioPrompt)
         self._v_cruise_kph_at_brake = 0
+        self._brake_resume_pending = False
 
       elif button_type == ButtonType.gapAdjustCruise:
         longitudinalPersonalityMax = self.params.get_int("LongitudinalPersonalityMax")
@@ -582,10 +596,12 @@ class VCruiseCarrot:
       if button_type == ButtonType.accelCruise:
         v_cruise_kph = button_kph
         self._v_cruise_kph_at_brake = 0
+        self._brake_resume_pending = False
       elif button_type == ButtonType.decelCruise:
         self._pause_auto_speed_up = True
         v_cruise_kph = button_kph
         self._v_cruise_kph_at_brake = 0
+        self._brake_resume_pending = False
       elif button_type == ButtonType.gapAdjustCruise:
         self.params.put_int_nonblocking("MyDrivingMode", self.params.get_int("MyDrivingMode") % 4 + 1) # 1,2,3,4 (1:eco, 2:safe, 3:normal, 4:high speed)
       elif button_type == ButtonType.lfaButton:
@@ -705,10 +721,10 @@ class VCruiseCarrot:
       return False, d_final
 
   def _update_cruise_state(self, CS, CC, v_cruise_kph):
-    # With stock-style cruise and AutoCruiseControl disabled, CANCEL freezes the
-    # saved set speed. Manual accelerator/brake driving must not rewrite it;
-    # RES/SET clears _cruise_cancel_state before reaching this function.
-    if self._cruise_cancel_state and self.autoCruiseControl == 0:
+    # With stock-style cruise and AutoCruiseControl disabled, CANCEL or a brake
+    # disengagement freezes the saved set speed. Manual accelerator/brake
+    # driving must not rewrite it; RES/SET clears the corresponding latch.
+    if self.autoCruiseControl == 0 and (self._cruise_cancel_state or self._brake_resume_pending):
       return v_cruise_kph
 
     if not CC.enabled:
@@ -843,6 +859,7 @@ class VCruiseCarrot:
       self._brake_pressed_count = max(1, self._brake_pressed_count + 1)
       if self._brake_pressed_count == 1 and self.enabled_last:
         self._v_cruise_kph_at_brake = self.v_cruise_kph
+        self._brake_resume_pending = True
         self._add_log(f"{self.v_cruise_kph} Cruise speed at brake")
       self._soft_hold_count = self._soft_hold_count + 1 if CS.vEgo < 0.1 and CS.gearShifter == GearShifter.drive else 0
       if self.autoCruiseControl == 0 or self.CP.pcmCruise:

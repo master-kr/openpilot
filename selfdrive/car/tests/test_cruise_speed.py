@@ -4,7 +4,7 @@ import numpy as np
 
 from parameterized import parameterized_class
 from cereal import log
-from openpilot.selfdrive.car.cruise import VCruiseHelper, V_CRUISE_MIN, V_CRUISE_MAX, V_CRUISE_INITIAL, IMPERIAL_INCREMENT
+from openpilot.selfdrive.car.cruise import VCruiseCarrot, VCruiseHelper, V_CRUISE_MIN, V_CRUISE_MAX, V_CRUISE_INITIAL, IMPERIAL_INCREMENT
 from cereal import car
 from openpilot.common.conversions import Conversions as CV
 from openpilot.selfdrive.test.longitudinal_maneuvers.maneuver import Maneuver
@@ -149,3 +149,57 @@ class TestVCruiseHelper:
         self.enable(float(v_ego), experimental_mode)
         assert V_CRUISE_INITIAL <= self.v_cruise_helper.v_cruise_kph <= V_CRUISE_MAX
         assert self.v_cruise_helper.v_cruise_initialized
+
+
+class TestVCruiseCarrotStockResume:
+  @staticmethod
+  def make_helper():
+    helper = object.__new__(VCruiseCarrot)
+    helper._cruise_cancel_state = False
+    helper._brake_resume_pending = True
+    helper._v_cruise_kph_at_brake = 60
+    helper._paddle_decel_active = False
+    helper._paddle_mode = 0
+    helper.autoCruiseControl_cancel_timer = 0
+    helper._lat_enabled = False
+    helper._pause_auto_speed_up = True
+    helper._soft_hold_active = 0
+    helper._cruise_ready = False
+    helper.carrot_cruise_active = False
+    helper._cruise_button_mode = 0
+    helper._prepare_buttons = lambda CS, v: (v + 1, ButtonType.accelCruise, False)
+    helper._carrot_command = lambda v, button, long_pressed: (v, button, long_pressed)
+    helper._update_cruise_state = lambda CS, CC, v: v
+    return helper
+
+  def test_resume_restores_pre_brake_speed_while_disabled(self):
+    helper = self.make_helper()
+    CS = car.CarState(cruiseState={"available": True, "standstill": False})
+    CC = car.CarControl(enabled=False)
+
+    assert helper._update_cruise_buttons(CS, CC, 50) == 60
+    assert not helper._brake_resume_pending
+    assert helper._v_cruise_kph_at_brake == 0
+
+  def test_brake_release_does_not_sync_to_current_speed(self):
+    helper = object.__new__(VCruiseCarrot)
+    helper.autoCruiseControl = 0
+    helper._cruise_cancel_state = False
+    helper._brake_resume_pending = True
+
+    CS = car.CarState(vEgoCluster=50 * CV.KPH_TO_MS)
+    CC = car.CarControl(enabled=False)
+
+    assert helper._update_cruise_state(CS, CC, 60) == 60
+
+  def test_set_after_brake_uses_current_speed(self):
+    helper = self.make_helper()
+    helper._prepare_buttons = lambda CS, v: (v - 1, ButtonType.decelCruise, False)
+    helper.v_ego_kph_set = 50
+    helper._cruise_speed_min = 30
+    CS = car.CarState(cruiseState={"available": True, "standstill": False})
+    CC = car.CarControl(enabled=False)
+
+    assert helper._update_cruise_buttons(CS, CC, 60) == 50
+    assert not helper._brake_resume_pending
+    assert helper._v_cruise_kph_at_brake == 0
