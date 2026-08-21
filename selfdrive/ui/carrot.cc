@@ -2599,7 +2599,7 @@ public:
         const int x = s->fb_w / 2;
         const int y = 202;
         nvgFontFace(s->vg, BOLD);
-        nvgFontSize(s->vg, 54);
+        nvgFontSize(s->vg, 60);
         float stop_bounds[4] = {};
         float time_bounds[4] = {};
         nvgTextBounds(s->vg, 0, 0, "STOP", nullptr, stop_bounds);
@@ -2608,16 +2608,16 @@ public:
         const float total_width = stop_bounds[2] - stop_bounds[0] + gap + time_bounds[2] - time_bounds[0];
         const float start_x = x - total_width / 2.0f;
         nvgTextAlign(s->vg, NVG_ALIGN_LEFT | NVG_ALIGN_BOTTOM);
-        ui_draw_text(s, start_x, y, "STOP", 54, COLOR_ORANGE, BOLD, 3.0f, 6.0f);
+        ui_draw_text(s, start_x, y, "STOP", 60, COLOR_ORANGE, BOLD, 3.0f, 6.0f);
         ui_draw_text(s, start_x + stop_bounds[2] - stop_bounds[0] + gap, y,
-                     elapsed_str, 54, COLOR_WHITE, BOLD, 3.0f, 6.0f);
+                     elapsed_str, 60, COLOR_WHITE, BOLD, 3.0f, 6.0f);
     }
     void drawRoadName(const UIState* s) {
         if (!params.getBool("MapEnable") || mapRoadName.isEmpty()) return;
         const QString source = mapRoadName.simplified();
         QString text = source;
         nvgFontFace(s->vg, BOLD);
-        nvgFontSize(s->vg, 62);
+        nvgFontSize(s->vg, 60);
         float bounds[4] = {};
         const float max_text_width = s->fb_w * 0.50f;
         QByteArray utf8;
@@ -2637,7 +2637,7 @@ public:
         const int x = s->fb_w / 2;
         ui_fill_rect(s->vg, {x - width / 2, 50, width, 90}, COLOR_BLACK_ALPHA(130), 18);
         nvgTextAlign(s->vg, NVG_ALIGN_CENTER | NVG_ALIGN_BOTTOM);
-        ui_draw_text(s, x, 124, utf8.constData(), 62, COLOR_WHITE, BOLD, 2.0f, 5.0f);
+        ui_draw_text(s, x, 124, utf8.constData(), 60, COLOR_WHITE, BOLD, 2.0f, 5.0f);
     }
     void drawSteeringAngle(const UIState* s) {
         // Match the color to the value the driver actually sees: only a value
@@ -2659,7 +2659,11 @@ public:
         const int icon_y = 292;
         const int text_y = 414;
         const float radius = 52.0f;
-        const float rotation_deg = neutral ? 0.0f : std::clamp(-raw_angle, -90.0f, 90.0f);
+        // Positive CarState angle is left on this IONIQ 5. NanoVG's screen Y
+        // axis points down, so negate it to make the icon turn left visually.
+        // Do not clamp: the wheel must keep rotating through the full measured
+        // steering range instead of stopping at 90 degrees.
+        const float rotation_deg = neutral ? 0.0f : -raw_angle;
         const float rotation = rotation_deg * 3.14159265f / 180.0f;
         const float cos_a = std::cos(rotation);
         const float sin_a = std::sin(rotation);
