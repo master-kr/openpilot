@@ -2,15 +2,11 @@
 import datetime
 import os
 import signal
-import subprocess
-import sys
-import threading
 import traceback
 
 from cereal import log
 import cereal.messaging as messaging
 import openpilot.system.sentry as sentry
-from openpilot.common.basedir import BASEDIR
 from openpilot.common.params import Params, ParamKeyFlag
 from openpilot.common.text_window import TextWindow
 from openpilot.system.hardware import HARDWARE
@@ -19,79 +15,11 @@ from openpilot.system.manager.process import ensure_running
 from openpilot.system.manager.process_config import managed_processes
 from openpilot.system.athena.registration import UNREGISTERED_DONGLE_ID
 from openpilot.common.swaglog import cloudlog, add_file_handler
+from openpilot.system.manager.startup_cache import seed_local_update_branches
 from openpilot.system.version import get_build_metadata, terms_version, training_version
 from openpilot.system.hardware.hw import Paths
 from openpilot.selfdrive.mapd_manager import ensure_map_directories
 
-
-SUPPORTED_CAR_LISTS = {
-  "SupportedCars": "hyundai",
-  "SupportedCars_gm": "gm",
-  "SupportedCars_toyota": "toyota",
-  "SupportedCars_mazda": "mazda",
-  "SupportedCars_honda": "honda",
-  "SupportedCars_ford": "ford",
-  "SupportedCars_tesla": "tesla",
-  "SupportedCars_volkswagen": "volkswagen",
-}
-
-
-def generate_missing_supported_car_lists(params: Params) -> None:
-  """Populate cached selector lists outside the boot critical path."""
-  for key, brand in SUPPORTED_CAR_LISTS.items():
-    if params.get(key):
-      continue
-    values_py = os.path.join(BASEDIR, "opendbc", "car", brand, "values.py")
-    try:
-      result = subprocess.run([sys.executable, values_py], check=True, capture_output=True,
-                              text=True, encoding="utf-8")
-      supported_cars = result.stdout.strip()
-      if supported_cars:
-        params.put(key, supported_cars)
-      else:
-        cloudlog.warning(f"empty supported-car list for {brand}")
-    except Exception:
-      cloudlog.exception(f"failed to build {key}")
-
-
-def seed_local_update_branches(params: Params, current_branch: str, enumerate_refs: bool = True) -> None:
-  """Keep the software branch selector useful without a background network check."""
-  branches: list[str] = []
-
-  def add_branch(branch: str | None) -> None:
-    if not branch:
-      return
-    branch = branch.strip()
-    if branch.startswith("origin/"):
-      branch = branch[len("origin/"):]
-    if branch and branch != "HEAD" and branch not in branches:
-      branches.append(branch)
-
-  add_branch(current_branch)
-  add_branch(params.get("UpdaterTargetBranch"))
-  for branch in (params.get("UpdaterAvailableBranches") or "").split(","):
-    add_branch(branch)
-
-  if enumerate_refs:
-    try:
-      result = subprocess.run(
-        ["git", "for-each-ref", "--format=%(refname:short)", "refs/heads", "refs/remotes/origin"],
-        cwd=BASEDIR, check=True, capture_output=True, text=True, encoding="utf-8",
-      )
-      for branch in result.stdout.splitlines():
-        add_branch(branch)
-    except Exception:
-      cloudlog.exception("failed to enumerate local update branches")
-
-  if branches:
-    params.put("UpdaterAvailableBranches", ",".join(branches))
-  if current_branch:
-    params.put("UpdaterTargetBranch", current_branch)
-
-
-def populate_startup_caches(params: Params, current_branch: str) -> None:
-  generate_missing_supported_car_lists(params)
-  seed_local_update_branches(params, current_branch)
 
 def set_default_params():
   params = Params()
@@ -152,8 +80,8 @@ def manager_init() -> None:
   params.put_bool("IsTestedBranch", build_metadata.tested_channel)
   params.put_bool("IsReleaseBranch", build_metadata.release_channel)
   params.put("HardwareSerial", serial)
-  # Publish the current branch immediately without spawning a process on the
-  # boot critical path. Additional local refs are added by the cache thread.
+  # Publish the current branch immediately. Additional local refs are added by
+  # the isolated startup_cache process after critical processes are launched.
   seed_local_update_branches(params, build_metadata.channel, enumerate_refs=False)
 
   # set dongle id
@@ -182,10 +110,6 @@ def manager_init() -> None:
   # preimport all processes
   for p in managed_processes.values():
     p.prepare()
-
-  threading.Thread(target=populate_startup_caches, args=(params, build_metadata.channel), daemon=True,
-                   name="startup-cache").start()
-
 
 def manager_cleanup() -> None:
   # send signals to kill all procs

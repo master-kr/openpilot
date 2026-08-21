@@ -132,6 +132,7 @@ inline static std::unordered_map<std::string, ParamKeyAttributes> keys = {
     {"UpdaterState", {CLEAR_ON_MANAGER_START, STRING}},
     {"UpdaterTargetBranch", {CLEAR_ON_MANAGER_START, STRING}},
     {"UpdaterUserRequest", {CLEAR_ON_MANAGER_START, INT, "0"}},
+    {"StartupCacheDone", {CLEAR_ON_MANAGER_START, BOOL, "0"}},
     {"UpdaterLastFetchTime", {PERSISTENT, TIME}},
     {"Version", {PERSISTENT, STRING}},
 

@@ -58,6 +58,9 @@ def only_onroad(started: bool, params: Params, CP: car.CarParams) -> bool:
 def only_offroad(started: bool, params: Params, CP: car.CarParams) -> bool:
   return not started
 
+def startup_cache_pending(started: bool, params: Params, CP: car.CarParams) -> bool:
+  return not params.get_bool("StartupCacheDone")
+
 def enable_updated(started: bool, params: Params, CP: car.CarParams) -> bool:
   # Offline mode blocks automatic checks, but an explicit Software-panel
   # CHECK/DOWNLOAD request may start updated for that one operation.
@@ -174,6 +177,9 @@ procs = [
   PythonProcess("xiaoge_data", "selfdrive.carrot.xiaoge_data", enable_xiaoge_data),
   # c3x lite
   PythonProcess("beep", "selfdrive.controls.beep", c3x_lite, enabled=TICI),
+  # One-shot, non-critical cache generation. Keep this last so Panda/UI and
+  # all other managed processes are forked before cache writes begin.
+  PythonProcess("startup_cache", "system.manager.startup_cache", startup_cache_pending),
 ]
 
 managed_processes = {p.name: p for p in procs}
