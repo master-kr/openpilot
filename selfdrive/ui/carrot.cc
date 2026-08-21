@@ -2596,24 +2596,36 @@ public:
         const int elapsed = std::max(0, (int)standstillElapsed);
         char elapsed_str[32];
         snprintf(elapsed_str, sizeof(elapsed_str), "%d:%02d", elapsed / 60, elapsed % 60);
+        const int x = s->fb_w / 2;
+        const int y = 176;
+        nvgFontFace(s->vg, BOLD);
+        nvgFontSize(s->vg, 54);
+        float stop_bounds[4] = {};
+        float time_bounds[4] = {};
+        nvgTextBounds(s->vg, 0, 0, "STOP", nullptr, stop_bounds);
+        nvgTextBounds(s->vg, 0, 0, elapsed_str, nullptr, time_bounds);
+        const float gap = 12.0f;
+        const float total_width = stop_bounds[2] - stop_bounds[0] + gap + time_bounds[2] - time_bounds[0];
+        const float start_x = x - total_width / 2.0f;
         nvgTextAlign(s->vg, NVG_ALIGN_LEFT | NVG_ALIGN_BOTTOM);
-        ui_draw_text(s, 45, 285, "STOP", 52, COLOR_ORANGE, BOLD, 3.0f, 6.0f);
-        ui_draw_text(s, 185, 285, elapsed_str, 52, COLOR_WHITE, BOLD, 3.0f, 6.0f);
+        ui_draw_text(s, start_x, y, "STOP", 54, COLOR_ORANGE, BOLD, 3.0f, 6.0f);
+        ui_draw_text(s, start_x + stop_bounds[2] - stop_bounds[0] + gap, y,
+                     elapsed_str, 54, COLOR_WHITE, BOLD, 3.0f, 6.0f);
     }
     void drawRoadName(const UIState* s) {
         if (!params.getBool("MapEnable") || mapRoadName.isEmpty()) return;
         QString text = mapRoadName.simplified();
-        if (text.size() > 28) text = text.left(27) + QStringLiteral("…");
+        if (text.size() > 24) text = text.left(23) + QStringLiteral("…");
         const QByteArray utf8 = text.toUtf8();
         nvgFontFace(s->vg, BOLD);
-        nvgFontSize(s->vg, 48);
+        nvgFontSize(s->vg, 62);
         float bounds[4] = {};
         nvgTextBounds(s->vg, 0, 0, utf8.constData(), nullptr, bounds);
         const int width = std::min((int)(bounds[2] - bounds[0]) + 50, (int)(s->fb_w * 0.62f));
         const int x = s->fb_w / 2;
-        ui_fill_rect(s->vg, {x - width / 2, 28, width, 68}, COLOR_BLACK_ALPHA(130), 18);
+        ui_fill_rect(s->vg, {x - width / 2, 24, width, 88}, COLOR_BLACK_ALPHA(130), 18);
         nvgTextAlign(s->vg, NVG_ALIGN_CENTER | NVG_ALIGN_BOTTOM);
-        ui_draw_text(s, x, 82, utf8.constData(), 48, COLOR_WHITE, BOLD, 2.0f, 5.0f);
+        ui_draw_text(s, x, 96, utf8.constData(), 62, COLOR_WHITE, BOLD, 2.0f, 5.0f);
     }
     void drawSteeringAngle(const UIState* s) {
         // Match the color to the value the driver actually sees: only a value
@@ -2622,28 +2634,46 @@ public:
         const float raw_angle = std::isfinite(steeringAngleDeg) ? steeringAngleDeg : 0.0f;
         const float display_angle = std::round(std::fabs(raw_angle) * 10.0f) / 10.0f;
         const bool neutral = display_angle == 0.0f;
-        // Hyundai CarState already normalizes the raw sensor sign. Keep the
-        // established C3 UI mapping: negative is L and positive is R.
-        const bool left = !neutral && raw_angle < 0.0f;
-        const bool right = !neutral && raw_angle > 0.0f;
-        const NVGcolor color = left ? nvgRGBA(70, 150, 255, 255) :
+        // IONIQ 5 live data confirms that a positive displayed CarState angle
+        // is a physical left turn. This is presentation-only; do not invert the
+        // vehicle state consumed by controls or safety.
+        const bool left = !neutral && raw_angle > 0.0f;
+        const bool right = !neutral && raw_angle < 0.0f;
+        const NVGcolor color = left ? nvgRGBA(40, 220, 90, 255) :
                                right ? nvgRGBA(255, 160, 40, 255) : COLOR_WHITE;
         // Align with the upper TPMS block (bx = fb_w - 125) and place the
         // steering value below its second pressure row (ending near y=200).
         const int x = s->fb_w - 125;
-        const int icon_y = 270;
-        const int text_y = 355;
+        const int icon_y = 282;
+        const int text_y = 400;
+        const float radius = 50.0f;
+        const float rotation_deg = neutral ? 0.0f : std::clamp(-raw_angle, -90.0f, 90.0f);
+        const float rotation = rotation_deg * 3.14159265f / 180.0f;
+        const float cos_a = std::cos(rotation);
+        const float sin_a = std::sin(rotation);
+        const auto rotated = [x, icon_y, cos_a, sin_a](float px, float py) {
+          return QPointF(x + px * cos_a - py * sin_a, icon_y + px * sin_a + py * cos_a);
+        };
 
-        // The centered RoadName remains unobstructed. This position also stays
-        // well above the optional lower TPMS block.
+        // Rotate the inner wheel spokes with the measured steering angle. The
+        // outer ring remains centered below the upper TPMS block.
         nvgBeginPath(s->vg);
-        nvgCircle(s->vg, x, icon_y, 36);
-        nvgMoveTo(s->vg, x - 32, icon_y - 9);
-        nvgLineTo(s->vg, x + 32, icon_y - 9);
-        nvgMoveTo(s->vg, x, icon_y);
-        nvgLineTo(s->vg, x, icon_y + 33);
+        nvgCircle(s->vg, x, icon_y, radius);
         nvgStrokeColor(s->vg, color);
-        nvgStrokeWidth(s->vg, 7.0f);
+        nvgStrokeWidth(s->vg, 9.0f);
+        nvgStroke(s->vg);
+
+        const QPointF left_spoke = rotated(-44.0f, -12.0f);
+        const QPointF right_spoke = rotated(44.0f, -12.0f);
+        const QPointF hub = rotated(0.0f, 0.0f);
+        const QPointF lower_spoke = rotated(0.0f, 45.0f);
+        nvgBeginPath(s->vg);
+        nvgMoveTo(s->vg, left_spoke.x(), left_spoke.y());
+        nvgLineTo(s->vg, right_spoke.x(), right_spoke.y());
+        nvgMoveTo(s->vg, hub.x(), hub.y());
+        nvgLineTo(s->vg, lower_spoke.x(), lower_spoke.y());
+        nvgStrokeColor(s->vg, color);
+        nvgStrokeWidth(s->vg, 9.0f);
         nvgStroke(s->vg);
 
         char angle[32];
@@ -2653,7 +2683,7 @@ public:
           snprintf(angle, sizeof(angle), "%c %.1f°", left ? 'L' : 'R', display_angle);
         }
         nvgTextAlign(s->vg, NVG_ALIGN_CENTER | NVG_ALIGN_BOTTOM);
-        ui_draw_text(s, x, text_y, angle, 46, color, BOLD, 2.0f, 5.0f);
+        ui_draw_text(s, x, text_y, angle, 54, color, BOLD, 2.0f, 5.0f);
     }
     void drawConnInfo(const UIState* s) {
         int y = 10;
@@ -3157,8 +3187,8 @@ void ui_draw(UIState *s, ModelRenderer* model_renderer, int w, int h) {
 
   drawCarrot.drawDebug(s);
   drawCarrot.drawDateTime(s);
-  drawCarrot.drawStopTimer(s);
   drawCarrot.drawRoadName(s);
+  drawCarrot.drawStopTimer(s);
   //drawCarrot.drawConnInfo(s);
   drawCarrot.drawDeviceInfo(s);
   int show_tpms = params.getInt("ShowTpms");

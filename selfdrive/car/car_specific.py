@@ -1,10 +1,8 @@
-from collections import deque
 from cereal import car, log
 import cereal.messaging as messaging
 from opendbc.car import DT_CTRL, structs
 from opendbc.car.interfaces import MAX_CTRL_SPEED
 from opendbc.car.volkswagen.values import CarControllerParams as VWCarControllerParams
-from opendbc.car.hyundai.carstate import PREV_BUTTON_SAMPLES as HYUNDAI_PREV_BUTTON_SAMPLES
 
 from openpilot.selfdrive.selfdrived.events import Events, ET
 
@@ -39,8 +37,6 @@ class CarSpecificEvents:
     self.low_speed_alert = False
     self.no_steer_warning = False
     self.silent_steer_warning = 1
-
-    self.cruise_buttons: deque = deque([], maxlen=HYUNDAI_PREV_BUTTON_SAMPLES)
 
     self.do_shutdown = False
     self.params = Params()
@@ -160,24 +156,29 @@ class CarSpecificEvents:
       cancel_pressed = any(ev.type == ButtonType.cancel and ev.pressed for ev in CS.buttonEvents)
       resume_pressed = any(ev.type in (ButtonType.accelCruise, ButtonType.decelCruise) and ev.pressed
                            for ev in CS.buttonEvents)
-      if cancel_pressed:
+      if self.CP.pcmCruise and cancel_pressed:
         self.hyundai_cancel_latched = True
-      elif self.hyundai_cancel_latched and resume_pressed:
+      elif self.CP.pcmCruise and self.hyundai_cancel_latched and resume_pressed:
         # A new RES/SET press is explicit user intent to engage again. This also
         # handles vehicles whose PCM returned to enabled before the button press.
         self.hyundai_cancel_latched = False
 
-      self.cruise_buttons.append(resume_pressed)
       events = self.create_common_events(CS, CS_prev, extra_gears=(GearShifter.sport, GearShifter.manumatic),
                                          pcm_enable=self.CP.pcmCruise,
-                                         allow_enable=any(self.cruise_buttons) and not self.hyundai_cancel_latched,
+                                         allow_enable=not self.hyundai_cancel_latched,
                                          allow_button_cancel=False)
       # Hyundai pcmCruise previously suppressed the generic cancel handler.
       # Emit exactly one immediate event on the physical press without also
       # inheriting the generic "CANCEL while parked" shutdown side effect.
-      if cancel_pressed:
+      if self.CP.pcmCruise and cancel_pressed:
         events.add(EventName.buttonCancel)
-      if resume_pressed and not self.hyundai_cancel_latched:
+      # With stock longitudinal control, the PCM rising edge above is the
+      # authoritative enable signal. Emitting buttonEnable while PCM is still
+      # disabled produces buttonEnable and pcmDisable in the same cycle. Only
+      # synthesize it when a RES/SET press follows a blocked stale PCM state
+      # which was already enabled before this frame.
+      if (self.CP.pcmCruise and resume_pressed and not self.hyundai_cancel_latched and
+          CS.cruiseState.enabled and CS_prev.cruiseState.enabled):
         events.add(EventName.buttonEnable)
 
       # low speed steer alert hysteresis logic (only for cars with steer cut off above 10 m/s)
