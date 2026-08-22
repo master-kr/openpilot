@@ -1979,6 +1979,12 @@ public:
     bool standstill = false;
     double standstillStartedAt = 0.0;
     double standstillElapsed = 0.0;
+    bool mapEnabled = false;
+    int showDateTime = 0;
+    int displayConfigRefreshCountdown = 0;
+    QString renderedRoadNameSource = "";
+    QString renderedRoadName = "";
+    int renderedRoadNameWidth = 0;
     int     nRoadLimitSpeed = 30;
     int     nGoPosDist = 0;
     int     xSpdLimit = 0;
@@ -2051,10 +2057,16 @@ public:
           standstillStartedAt = 0.0;
           standstillElapsed = 0.0;
         }
-        if (params.getBool("MapEnable")) {
-          mapRoadName = QString::fromStdString(params_memory.get("RoadName"));
+        // These settings and the road name change infrequently. Reading the
+        // persistent parameter store and rebuilding the road-name layout on
+        // every 20 Hz paint cycle made the UI thread needlessly busy.
+        if (displayConfigRefreshCountdown <= 0) {
+          mapEnabled = params.getBool("MapEnable");
+          showDateTime = params.getInt("ShowDateTime");
+          mapRoadName = mapEnabled ? QString::fromStdString(params_memory.get("RoadName")) : QString();
+          displayConfigRefreshCountdown = 20;
         } else {
-          mapRoadName.clear();
+          --displayConfigRefreshCountdown;
         }
         if (carrot_man_alive) {
             active_carrot = carrot_man.getActiveCarrot();
@@ -2588,9 +2600,10 @@ public:
     void drawDateTime(const UIState* s) {
         char str[128];
         // 시간표시
-        int show_datetime = params.getInt("ShowDateTime");
+        const int show_datetime = showDateTime;
         if (show_datetime) {
-            const QDateTime seoul = QDateTime::currentDateTimeUtc().toTimeZone(QTimeZone("Asia/Seoul"));
+            static const QTimeZone seoul_time_zone("Asia/Seoul");
+            const QDateTime seoul = QDateTime::currentDateTimeUtc().toTimeZone(seoul_time_zone);
 
             int x = 170;// s->fb_w - 300;
             int y = 120;// 150;
@@ -2682,30 +2695,34 @@ public:
                      elapsed_str, font_size, COLOR_WHITE, BOLD, 3.0f, 6.0f);
     }
     void drawRoadName(const UIState* s) {
-        if (!params.getBool("MapEnable") || mapRoadName.isEmpty()) return;
+        if (!mapEnabled || mapRoadName.isEmpty()) return;
         constexpr float font_size = 88.0f;
         constexpr float padding = 20.0f;
         constexpr float text_y = 126.0f;
         const QString source = mapRoadName.simplified();
-        QString text = source;
         nvgTextAlign(s->vg, NVG_ALIGN_CENTER | NVG_ALIGN_BOTTOM);
         nvgFontFace(s->vg, BOLD);
         nvgFontSize(s->vg, font_size);
         float bounds[4] = {};
-        const float max_box_width = s->fb_w * 0.54f;
-        const float max_text_width = max_box_width - 2.0f * padding;
-        QByteArray utf8;
-        while (!text.isEmpty()) {
-          const QString candidate = text + (text.size() < source.size() ? QStringLiteral("…") : QString());
-          utf8 = candidate.toUtf8();
-          nvgTextBounds(s->vg, 0, 0, utf8.constData(), nullptr, bounds);
-          if (bounds[2] - bounds[0] <= max_text_width) {
-            text = candidate;
-            break;
+        if (source != renderedRoadNameSource || s->fb_w != renderedRoadNameWidth) {
+          QString text = source;
+          const float max_box_width = s->fb_w * 0.54f;
+          const float max_text_width = max_box_width - 2.0f * padding;
+          while (!text.isEmpty()) {
+            const QString candidate = text + (text.size() < source.size() ? QStringLiteral("…") : QString());
+            const QByteArray candidate_utf8 = candidate.toUtf8();
+            nvgTextBounds(s->vg, 0, 0, candidate_utf8.constData(), nullptr, bounds);
+            if (bounds[2] - bounds[0] <= max_text_width) {
+              text = candidate;
+              break;
+            }
+            text.chop(1);
           }
-          text.chop(1);
+          renderedRoadNameSource = source;
+          renderedRoadName = text;
+          renderedRoadNameWidth = s->fb_w;
         }
-        utf8 = text.toUtf8();
+        const QByteArray utf8 = renderedRoadName.toUtf8();
         const int x = s->fb_w / 2;
         // ui_draw_text offsets the supplied Y coordinate by six pixels. Measure
         // at that exact position so all four sides receive identical padding.
@@ -3581,7 +3598,7 @@ void ui_nvg_init(UIState *s) {
   {"ic_apn", "../assets/images/img_apn.png"},
   {"ic_hda", "../assets/images/img_hda.png"},
   {"ic_navi_point", "../assets/images/navi_point.png"},
-  {"ic_steering_wheel", "../assets/img_chffr_wheel.png"}
+  {"ic_steering_wheel", "../assets/img_steering_wheel_sunny.png"}
 
   };
   for (auto [name, file] : images) {
