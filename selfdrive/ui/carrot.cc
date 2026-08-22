@@ -2596,6 +2596,7 @@ public:
             int y = 120;// 150;
             int nav_y = y + 50;
             float info_left = x;
+            float info_right = x;
 
             nvgTextAlign(s->vg, NVG_ALIGN_CENTER | NVG_ALIGN_BOTTOM);
             if (show_datetime == 1 || show_datetime == 2) {
@@ -2606,6 +2607,7 @@ public:
                 float time_bounds[4] = {};
                 nvgTextBounds(s->vg, x, y, str, nullptr, time_bounds);
                 info_left = time_bounds[0];
+                info_right = time_bounds[2];
             }
             if (show_datetime == 1 || show_datetime == 3) {
                 //strftime(str, sizeof(str), "%m-%d-%a", local);
@@ -2619,23 +2621,37 @@ public:
                 nvgFontSize(s->vg, 60.0f);
                 float date_bounds[4] = {};
                 nvgTextBounds(s->vg, x, y + 70, str, nullptr, date_bounds);
-                // The GPS row begins on the exact same left edge as the date.
+                // Match the GPS card to the date row when the date is visible.
                 info_left = date_bounds[0];
+                info_right = date_bounds[2];
                 nav_y += 70;
             }
             const bool date_visible = show_datetime == 1 || show_datetime == 3;
-            const int gps_y = y + (date_visible ? 175 : 110);
-            // Keep the GPS speed independent from cluster speed and use one
-            // neutral color. It is information, not a speed-limit warning.
-            constexpr float gps_font_size = 60.0f;
+            const float gps_card_top = y + (date_visible ? 100.0f : 30.0f);
+            const float gps_card_width = std::max(220.0f, info_right - info_left);
+            const float gps_card_left = x - gps_card_width / 2.0f;
+            constexpr float gps_card_height = 100.0f;
+            constexpr float gps_label_size = 25.0f;
+            constexpr float gps_speed_size = 40.0f;
+            const NVGcolor gps_card_color = COLOR_GREEN_ALPHA(190);
+
+            // Use the same two-line rounded-card style as CPU/MEM/VOLT.
+            ui_fill_rect(s->vg, {
+              (int)std::lround(gps_card_left),
+              (int)std::lround(gps_card_top),
+              (int)std::lround(gps_card_width),
+              (int)gps_card_height,
+            }, gps_card_color, 15, 2);
+
+            nvgTextAlign(s->vg, NVG_ALIGN_CENTER | NVG_ALIGN_BOTTOM);
+            ui_draw_text(s, x, gps_card_top + 36.0f, "GPS", gps_label_size, COLOR_WHITE, BOLD);
             if (gpsSpeedValid) {
               const int gps_display_speed = (int)std::lround(gpsSpeedKph);
-              snprintf(str, sizeof(str), "GPS %d km/h", gps_display_speed);
+              snprintf(str, sizeof(str), "%d km/h", gps_display_speed);
             } else {
-              snprintf(str, sizeof(str), "GPS --");
+              snprintf(str, sizeof(str), "-- km/h");
             }
-            nvgTextAlign(s->vg, NVG_ALIGN_LEFT | NVG_ALIGN_BOTTOM);
-            ui_draw_text(s, info_left, gps_y, str, gps_font_size, COLOR_WHITE, BOLD, 2.0f, 4.0f);
+            ui_draw_text(s, x, gps_card_top + 86.0f, str, gps_speed_size, COLOR_WHITE, BOLD);
             if (false && szPosRoadName.size() > 0) {
                 nvgTextAlign(s->vg, NVG_ALIGN_RIGHT | NVG_ALIGN_BOTTOM);
                 ui_draw_text(s, x, nav_y, szPosRoadName.toStdString().c_str(), 35, COLOR_WHITE, BOLD, 3.0f, 8.0f);

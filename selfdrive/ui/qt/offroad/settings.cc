@@ -760,17 +760,13 @@ CarrotPanel::CarrotPanel(QWidget* parent) : QWidget(parent) {
   dispToggles->addItem(new CValueControl("ShowRadarInfo", tr("Radar Info"), tr("0:None,1:Display,2:RelPos,3:Stopped Car"), 0, 3, 1));
   dispToggles->addItem(new CValueControl("ShowRouteInfo", tr("Route Info"), tr("0:None,1:Display"), 0, 1, 1));
   dispToggles->addItem(new CValueControl("ShowPlotMode", tr("Debug plot"), tr("Selects the on-road diagnostic plot data set; 0 hides the plot."), 0, 10, 1));
-  const QString auto_label = tr("Auto");
-  const QString always_on_label = tr("Always on");
-  const QString dark_label = tr("Dark");
-  const QString enabled_label = tr("Enabled");
-  const QString disabled_label = tr("Disabled");
-  const QString seconds_label = tr("s");
-  const QString minutes_label = tr("min");
-  dispToggles->addItem(new CValueControl("BrightnessControl", tr("Screen brightness"),
+  const QString always_on_label = QStringLiteral("Always on");
+  const QString seconds_label = QStringLiteral("s");
+  const QString minutes_label = QStringLiteral("min");
+  dispToggles->addItem(new CValueControl("BrightnessControl", QStringLiteral("Screen brightness"),
     tr("0 automatically follows camera-based ambient brightness; 5–100 sets a fixed screen brightness."), 0, 100, 5,
-    [auto_label](int value) { return value == 0 ? auto_label : QString("%1%").arg(value); }));
-  dispToggles->addItem(new CValueControl("OnroadScreenOff", tr("Driving screen dim timer"),
+    [](int value) { return value == 0 ? QStringLiteral("0") : QString("%1%").arg(value); }));
+  dispToggles->addItem(new CValueControl("OnroadScreenOff", QStringLiteral("Driving screen dim timer"),
     tr("Dims the screen after this delay while driving. Touching the screen or a configured alert restores brightness."), -2, 10, 1,
     [always_on_label, seconds_label, minutes_label](int value) {
       if (value == -2) return always_on_label;
@@ -778,12 +774,12 @@ CarrotPanel::CarrotPanel(QWidget* parent) : QWidget(parent) {
       if (value == 0) return QString("30 %1").arg(seconds_label);
       return QString("%1 %2").arg(value).arg(minutes_label);
     }));
-  dispToggles->addItem(new CValueControl("OnroadScreenOffBrightness", tr("Dimmed screen brightness"),
+  dispToggles->addItem(new CValueControl("OnroadScreenOffBrightness", QStringLiteral("Dimmed screen brightness"),
     tr("Applies this percentage to automatic brightness after the timer expires. 0 turns the backlight dark."), 0, 100, 10,
-    [dark_label](int value) { return value == 0 ? dark_label : QString("%1%").arg(value); }));
-  dispToggles->addItem(new CValueControl("OnroadScreenOffEvent", tr("Wake screen for normal alerts"),
-    tr("Enabled wakes the screen for every alert. Disabled wakes it only for user-prompt and critical alerts."), 0, 1, 1,
-    [enabled_label, disabled_label](int value) { return value == 0 ? disabled_label : enabled_label; }));
+    [](int value) { return value == 0 ? QStringLiteral("0") : QString("%1%").arg(value); }));
+  dispToggles->addItem(new CValueControl("OnroadScreenOffEvent", QStringLiteral("Wake screen for normal alerts"),
+    tr("0: Disabled; wakes the screen only for user-prompt and critical alerts. 1: Enabled; wakes the screen for every alert."), 0, 1, 1,
+    [](int value) { return QString::number(value); }));
   //dispToggles->addItem(new CValueControl("ShowHudMode", "Display Mode", "0:Frog,1:APilot,2:Bottom,3:Top,4:Left,5:Left-Bottom", 0, 5, 1));
   //dispToggles->addItem(new CValueControl("ShowSteerRotate", "Handle rotate", "0:None,1:Rotate", 0, 1, 1));
   //dispToggles->addItem(new CValueControl("ShowAccelRpm", "Accel meter", "0:None,1:Display,1:Accel+RPM", 0, 2, 1));
@@ -876,7 +872,7 @@ CarrotPanel::CarrotPanel(QWidget* parent) : QWidget(parent) {
   startToggles->addItem(new CValueControl("MaxTimeOffroadMin", tr("Power off time (min)"), tr("Maximum ignition-off time before automatic shutdown, in minutes."), 1, 600, 10));
   startToggles->addItem(new CValueControl("EnableConnect", tr("EnableConnect"), tr("Your device may be banned by Comma"), 0, 2, 1));
   startToggles->addItem(new CValueControl("MapboxStyle", tr("Mapbox Style(0)"), tr("Selects the online Mapbox renderer style; it does not change offline OSM data."), 0, 2, 1));
-  startToggles->addItem(new CValueControl("MapEnable", tr("MAP 데이터 사용"), tr("0: off (no map process/download/UI), 1: use offline South Korea OSM road names."), 0, 1, 1));
+  startToggles->addItem(new CValueControl("MapEnable", tr("Use map data"), tr("0: off (no map process/download/UI), 1: use offline South Korea OSM road names."), 0, 1, 1));
   startToggles->addItem(new MapDataControl(this));
   startToggles->addItem(new CValueControl("RecordRoadCam", tr("Record Road camera(0)"), tr("1:RoadCam, 2:RoadCam+WideRoadCam"), 0, 2, 1));
   startToggles->addItem(new CValueControl("HDPuse", tr("Use HDP(CCNC)(0)"), tr("1:While Using APN, 2:Always"), 0, 2, 1));
@@ -1039,8 +1035,8 @@ void CValueControl::decreaseValue() {
 }
 
 MapDataControl::MapDataControl(QWidget *parent)
-    : ButtonControl(tr("한국 MAP 데이터"), tr("다운로드/갱신"),
-                    tr("MAP 데이터 사용을 1로 설정한 뒤 버튼을 누르면 OpenStreetMap 한국 데이터를 내려받습니다. 다운로드가 끝나면 오프라인 도로명에 사용하며 매 부팅마다 다시 받지 않습니다."), parent) {
+    : ButtonControl(tr("South Korea map data"), tr("Download/Update"),
+                    tr("Set Use map data to 1, then press this button to download South Korea OpenStreetMap data. Once downloaded, it is used for offline road names and is not downloaded again at every boot."), parent) {
   connect(this, &ButtonControl::clicked, this, &MapDataControl::requestDownload);
   connect(&timer, &QTimer::timeout, this, &MapDataControl::refresh);
   timer.setInterval(1000);
@@ -1065,26 +1061,26 @@ bool MapDataControl::mapDataPresent() const {
 
 void MapDataControl::requestDownload() {
   if (!params.getBool("MapEnable")) {
-    ConfirmationDialog::alert(tr("먼저 MAP 데이터 사용을 1로 설정하세요."), this);
+    ConfirmationDialog::alert(tr("Set Use map data to 1 first."), this);
     return;
   }
 
   if (ConfirmationDialog::confirm(
-        tr("한국 오프라인 MAP 데이터를 다운로드하거나 기존 데이터를 갱신하시겠습니까?"),
-        tr("다운로드 시작"), this)) {
+        tr("Download South Korea offline map data or update the existing data?"),
+        tr("Start download"), this)) {
     // Do not display a completed/failed result from the previous request while
     // mapd is preparing the new one.
     params.remove("OSMDownloadProgress");
     params.putBool("OsmDbUpdatesCheck", true);
     setEnabled(false);
-    setValue(tr("다운로드 요청 중"));
+    setValue(tr("Requesting download"));
   }
 }
 
 void MapDataControl::refresh() {
   if (!params.getBool("MapEnable")) {
     setEnabled(false);
-    setValue(tr("미사용"));
+    setValue(tr("Map disabled"));
     return;
   }
 
@@ -1100,19 +1096,19 @@ void MapDataControl::refresh() {
                                         (total <= 0 || downloaded >= total);
   if (request_pending || (active && total <= 0) || waiting_for_new_progress) {
     setEnabled(false);
-    setValue(tr("다운로드 준비 중"));
+    setValue(tr("Preparing download"));
   } else if (active) {
     const int percent = total > 0 ? std::clamp(downloaded * 100 / total, 0, 100) : 0;
     setEnabled(false);
-    setValue(tr("다운로드 중 %1/%2 (%3%)").arg(downloaded).arg(total).arg(percent));
+    setValue(tr("Downloading %1/%2 (%3%)").arg(downloaded).arg(total).arg(percent));
   } else if (total > 0 && downloaded < total) {
     setEnabled(true);
-    setValue(tr("다운로드 실패 %1/%2 · 재시도").arg(downloaded).arg(total));
+    setValue(tr("Download failed %1/%2 · Retry").arg(downloaded).arg(total));
   } else if (mapDataPresent()) {
     setEnabled(true);
-    setValue(tr("다운로드 완료"));
+    setValue(tr("Download complete"));
   } else {
     setEnabled(true);
-    setValue(tr("미다운로드"));
+    setValue(tr("Not downloaded"));
   }
 }

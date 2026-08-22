@@ -274,8 +274,8 @@
         <translation>일반 알림 시 화면 깨우기</translation>
     </message>
     <message>
-        <source>Enabled wakes the screen for every alert. Disabled wakes it only for user-prompt and critical alerts.</source>
-        <translation>사용은 모든 알림에서 화면을 밝히며, 미사용은 사용자 확인 및 긴급 알림에서만 화면을 밝힙니다.</translation>
+        <source>0: Disabled; wakes the screen only for user-prompt and critical alerts. 1: Enabled; wakes the screen for every alert.</source>
+        <translation>0: 미사용(사용자 확인 및 긴급 알림에서만 화면을 밝힘), 1: 사용(모든 알림에서 화면을 밝힘).</translation>
     </message>
     <message>
         <source>Auto</source>
@@ -552,6 +552,62 @@
     <message>
         <source>0: off (no map process/download/UI), 1: use offline South Korea OSM road names.</source>
         <translation>0: 미사용(MAP 프로세스·다운로드·도로명 표시 중지), 1: 한국 오프라인 OSM 도로명 사용. 데이터는 아래 버튼으로 별도 다운로드합니다.</translation>
+    </message>
+    <message>
+        <source>Use map data</source>
+        <translation>MAP 데이터 사용</translation>
+    </message>
+    <message>
+        <source>South Korea map data</source>
+        <translation>한국 MAP 데이터</translation>
+    </message>
+    <message>
+        <source>Download/Update</source>
+        <translation>다운로드/갱신</translation>
+    </message>
+    <message>
+        <source>Set Use map data to 1, then press this button to download South Korea OpenStreetMap data. Once downloaded, it is used for offline road names and is not downloaded again at every boot.</source>
+        <translation>MAP 데이터 사용을 1로 설정한 뒤 버튼을 누르면 OpenStreetMap 한국 데이터를 내려받습니다. 다운로드가 끝나면 오프라인 도로명에 사용하며 매 부팅마다 다시 받지 않습니다.</translation>
+    </message>
+    <message>
+        <source>Set Use map data to 1 first.</source>
+        <translation>먼저 MAP 데이터 사용을 1로 설정하세요.</translation>
+    </message>
+    <message>
+        <source>Download South Korea offline map data or update the existing data?</source>
+        <translation>한국 오프라인 MAP 데이터를 다운로드하거나 기존 데이터를 갱신하시겠습니까?</translation>
+    </message>
+    <message>
+        <source>Start download</source>
+        <translation>다운로드 시작</translation>
+    </message>
+    <message>
+        <source>Requesting download</source>
+        <translation>다운로드 요청 중</translation>
+    </message>
+    <message>
+        <source>Map disabled</source>
+        <translation>미사용</translation>
+    </message>
+    <message>
+        <source>Preparing download</source>
+        <translation>다운로드 준비 중</translation>
+    </message>
+    <message>
+        <source>Downloading %1/%2 (%3%)</source>
+        <translation>다운로드 중 %1/%2 (%3%)</translation>
+    </message>
+    <message>
+        <source>Download failed %1/%2 · Retry</source>
+        <translation>다운로드 실패 %1/%2 · 재시도</translation>
+    </message>
+    <message>
+        <source>Download complete</source>
+        <translation>다운로드 완료</translation>
+    </message>
+    <message>
+        <source>Not downloaded</source>
+        <translation>미다운로드</translation>
     </message>
     <message>
         <source>1:RoadCam, 2:RoadCam+WideRoadCam</source>
