@@ -2755,15 +2755,16 @@ public:
         nvgStrokeWidth(s->vg, 6.0f);
         nvgStroke(s->vg);
 
-        constexpr float icon_size = 122.0f;
+        constexpr float wheel_icon_size = 122.0f;
         nvgSave(s->vg);
         nvgTranslate(s->vg, x, icon_y);
         nvgRotate(s->vg, rotation);
-        const NVGpaint wheel = nvgImagePattern(s->vg, -icon_size / 2.0f, -icon_size / 2.0f,
-                                               icon_size, icon_size, 0.0f,
+        const NVGpaint wheel = nvgImagePattern(s->vg, -wheel_icon_size / 2.0f, -wheel_icon_size / 2.0f,
+                                               wheel_icon_size, wheel_icon_size, 0.0f,
                                                s->images.at("ic_steering_wheel"), 1.0f);
         nvgBeginPath(s->vg);
-        nvgRect(s->vg, -icon_size / 2.0f, -icon_size / 2.0f, icon_size, icon_size);
+        nvgRect(s->vg, -wheel_icon_size / 2.0f, -wheel_icon_size / 2.0f,
+                wheel_icon_size, wheel_icon_size);
         nvgFillPaint(s->vg, wheel);
         nvgFill(s->vg);
         nvgRestore(s->vg);
