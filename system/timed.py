@@ -8,7 +8,6 @@ import cereal.messaging as messaging
 from openpilot.common.time_helpers import min_date, system_time_valid
 from openpilot.common.swaglog import cloudlog
 from openpilot.common.params import Params
-from openpilot.common.gps import get_gps_location_service
 
 
 def set_time(new_time):
@@ -35,10 +34,12 @@ def main() -> NoReturn:
   """
 
   params = Params()
-  gps_location_service = get_gps_location_service(params)
+  preferred_gps_service = "gpsLocationExternal" if params.get_bool("UbloxAvailable") else "gpsLocation"
+  gps_location_services = [preferred_gps_service]
+  gps_location_services.append("gpsLocation" if preferred_gps_service == "gpsLocationExternal" else "gpsLocationExternal")
 
   pm = messaging.PubMaster(['clocks'])
-  sm = messaging.SubMaster([gps_location_service])
+  sm = messaging.SubMaster(gps_location_services)
   while True:
     sm.update(1000)
 
@@ -47,15 +48,22 @@ def main() -> NoReturn:
     msg.clocks.wallTimeNanos = time.time_ns()
     pm.send('clocks', msg)
 
-    gps = sm[gps_location_service]
-    # GPS timestamps are UTC. Keep the system clock in UTC and let the UI apply
-    # the configured local timezone (Asia/Seoul on Korean devices).
-    gps_time = datetime.datetime.fromtimestamp(gps.unixTimestampMillis / 1000., datetime.UTC).replace(tzinfo=None)
-    if not sm.updated[gps_location_service] or (time.monotonic() - sm.logMonoTime[gps_location_service] / 1e9) > 2.0:
-      continue
-    if not gps.hasFix:
-      continue
-    if gps_time < min_date():
+    gps_time = None
+    for gps_location_service in gps_location_services:
+      gps = sm[gps_location_service]
+      if not sm.updated[gps_location_service] or (time.monotonic() - sm.logMonoTime[gps_location_service] / 1e9) > 2.0:
+        continue
+      if not gps.hasFix:
+        continue
+
+      # GPS timestamps are UTC. Keep the system clock in UTC and let the UI
+      # apply the configured local timezone (Asia/Seoul on Korean devices).
+      candidate_time = datetime.datetime.fromtimestamp(gps.unixTimestampMillis / 1000., datetime.UTC).replace(tzinfo=None)
+      if candidate_time >= min_date():
+        gps_time = candidate_time
+        break
+
+    if gps_time is None:
       continue
 
     set_time(gps_time)

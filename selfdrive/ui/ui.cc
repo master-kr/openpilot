@@ -138,14 +138,17 @@ void UIState::updateStatus() {
 
 UIState::UIState(QObject *parent) : QObject(parent) {
   ublox_avaliable = Params().getBool("UbloxAvailable");
-  auto gps_service = (ublox_avaliable) ? "gpsLocationExternal" : "gpsLocation";
   sm = std::make_unique<SubMaster>(std::vector<const char*>{
     "modelV2", "controlsState", "liveCalibration", "radarState", "deviceState",
     "pandaStates", "carParams", "driverMonitoringState", "carState", "driverStateV2",
     "wideRoadCameraState", "managerState", "selfdriveState", "longitudinalPlan",
     "longitudinalPlan",
     "carControl", "carrotMan", "liveTorqueParameters", "lateralPlan", "liveParameters",
-    "navRoute", "navInstruction", "navInstructionCarrot", gps_service, "liveDelay",
+    // Subscribe to both GPS transports. Some C3 installations retain a stale
+    // UbloxAvailable parameter after an update, so the UI selects the live
+    // service at runtime instead of losing GPS until the parameter is fixed.
+    "navRoute", "navInstruction", "navInstructionCarrot",
+    "gpsLocationExternal", "gpsLocation", "liveDelay",
     "peripheralState",
   });
   prime_state = new PrimeState(this);
