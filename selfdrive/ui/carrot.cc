@@ -2643,11 +2643,10 @@ public:
             const float gps_card_top = y + (date_visible ? 100.0f : 30.0f);
             const float gps_card_width = std::max(220.0f, info_right - info_left);
             const float gps_card_left = x - gps_card_width / 2.0f;
-            // Keep the card's current top/width and align its bottom with the
-            // end of the left cyan status rail.
-            constexpr float gps_card_height = 200.0f;
-            constexpr float gps_label_size = 30.0f;
-            constexpr float gps_speed_size = 82.0f;
+            // Keep the card above the end of the left cyan status rail.
+            constexpr float gps_card_height = 184.0f;
+            constexpr float gps_label_size = 28.0f;
+            constexpr float gps_speed_size = 96.0f;
             constexpr float gps_unit_size = 27.0f;
             const NVGcolor gps_card_color = COLOR_GREEN_ALPHA(190);
 
@@ -2660,9 +2659,9 @@ public:
             }, gps_card_color, 15, 2);
 
             const float card_center_x = gps_card_left + gps_card_width / 2.0f;
-            const float gps_label_y = gps_card_top + 28.0f;
-            const float gps_speed_y = gps_card_top + 98.0f;
-            const float gps_unit_y = gps_card_top + 170.0f;
+            const float gps_label_y = gps_card_top + 26.0f;
+            const float gps_speed_y = gps_card_top + 91.0f;
+            const float gps_unit_y = gps_card_top + 158.0f;
 
             // Three clear rows: GPS label, speed, and km/h. Only the numeric
             // speed changes color at the exact 100 km/h boundary.
