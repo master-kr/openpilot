@@ -2643,11 +2643,11 @@ public:
             const float gps_card_top = y + (date_visible ? 100.0f : 30.0f);
             const float gps_card_width = std::max(220.0f, info_right - info_left);
             const float gps_card_left = x - gps_card_width / 2.0f;
-            // Keep the card's current top/width, extending only its bottom to
-            // align with the end of the left cyan status rail.
-            constexpr float gps_card_height = 265.0f;
-            constexpr float gps_letter_size = 28.0f;
-            constexpr float gps_speed_size = 76.0f;
+            // Keep the card's current top/width and align its bottom with the
+            // end of the left cyan status rail.
+            constexpr float gps_card_height = 200.0f;
+            constexpr float gps_label_size = 30.0f;
+            constexpr float gps_speed_size = 82.0f;
             constexpr float gps_unit_size = 27.0f;
             const NVGcolor gps_card_color = COLOR_GREEN_ALPHA(190);
 
@@ -2659,17 +2659,15 @@ public:
               (int)gps_card_height,
             }, gps_card_color, 15, 2);
 
-            const float card_center_y = gps_card_top + gps_card_height / 2.0f;
-            const float letters_x = gps_card_left + 27.0f;
-            const float speed_x = gps_card_left + gps_card_width * 0.52f;
-            const float units_x = gps_card_left + gps_card_width - 30.0f;
+            const float card_center_x = gps_card_left + gps_card_width / 2.0f;
+            const float gps_label_y = gps_card_top + 28.0f;
+            const float gps_speed_y = gps_card_top + 98.0f;
+            const float gps_unit_y = gps_card_top + 170.0f;
 
-            // Three clear columns: G/P/S, speed, and km with /h. Only the numeric
+            // Three clear rows: GPS label, speed, and km/h. Only the numeric
             // speed changes color at the exact 100 km/h boundary.
             nvgTextAlign(s->vg, NVG_ALIGN_CENTER | NVG_ALIGN_MIDDLE);
-            ui_draw_text(s, letters_x, card_center_y - 42.0f, "G", gps_letter_size, COLOR_WHITE, BOLD, 2.0f, 4.0f);
-            ui_draw_text(s, letters_x, card_center_y, "P", gps_letter_size, COLOR_WHITE, BOLD, 2.0f, 4.0f);
-            ui_draw_text(s, letters_x, card_center_y + 42.0f, "S", gps_letter_size, COLOR_WHITE, BOLD, 2.0f, 4.0f);
+            ui_draw_text(s, card_center_x, gps_label_y, "GPS", gps_label_size, COLOR_WHITE, BOLD, 2.0f, 4.0f);
 
             int gps_display_speed = 0;
             if (gpsSpeedValid) {
@@ -2679,9 +2677,8 @@ public:
               snprintf(str, sizeof(str), "--");
             }
             const NVGcolor gps_speed_color = gpsSpeedValid && gps_display_speed >= 100 ? COLOR_ORANGE : COLOR_WHITE;
-            ui_draw_text(s, speed_x, card_center_y, str, gps_speed_size, gps_speed_color, BOLD, 3.0f, 6.0f);
-            ui_draw_text(s, units_x, card_center_y - 25.0f, "km", gps_unit_size, COLOR_WHITE, BOLD, 2.0f, 4.0f);
-            ui_draw_text(s, units_x, card_center_y + 25.0f, "/h", gps_unit_size, COLOR_WHITE, BOLD, 2.0f, 4.0f);
+            ui_draw_text(s, card_center_x, gps_speed_y, str, gps_speed_size, gps_speed_color, BOLD, 3.0f, 6.0f);
+            ui_draw_text(s, card_center_x, gps_unit_y, "km/h", gps_unit_size, COLOR_WHITE, BOLD, 2.0f, 4.0f);
             if (false && szPosRoadName.size() > 0) {
                 nvgTextAlign(s->vg, NVG_ALIGN_RIGHT | NVG_ALIGN_BOTTOM);
                 ui_draw_text(s, x, nav_y, szPosRoadName.toStdString().c_str(), 35, COLOR_WHITE, BOLD, 3.0f, 8.0f);
@@ -2695,8 +2692,8 @@ public:
         char elapsed_str[32];
         snprintf(elapsed_str, sizeof(elapsed_str), "%d:%02d", elapsed / 60, elapsed % 60);
         const int x = s->fb_w / 2;
-        // Keep the enlarged timer clearly separated from the road-name box.
-        const int y = 300;
+        // Keep the original 160 px baseline spacing below the road-name box.
+        const int y = 286;
         nvgTextAlign(s->vg, NVG_ALIGN_LEFT | NVG_ALIGN_BOTTOM);
         nvgFontFace(s->vg, BOLD);
         nvgFontSize(s->vg, font_size);
