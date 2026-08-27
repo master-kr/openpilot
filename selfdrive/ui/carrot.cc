@@ -2663,8 +2663,7 @@ public:
             const float gps_speed_y = gps_card_top + 91.0f;
             const float gps_unit_y = gps_card_top + 158.0f;
 
-            // Three clear rows: GPS label, speed, and km/h. Only the numeric
-            // speed changes color at the exact 100 km/h boundary.
+            // Three clear rows: GPS label, speed, and km/h.
             nvgTextAlign(s->vg, NVG_ALIGN_CENTER | NVG_ALIGN_MIDDLE);
             ui_draw_text(s, card_center_x, gps_label_y, "GPS", gps_label_size, COLOR_WHITE, BOLD, 2.0f, 4.0f);
 
@@ -2675,8 +2674,7 @@ public:
             } else {
               snprintf(str, sizeof(str), "--");
             }
-            const NVGcolor gps_speed_color = gpsSpeedValid && gps_display_speed >= 100 ? COLOR_ORANGE : COLOR_WHITE;
-            ui_draw_text(s, card_center_x, gps_speed_y, str, gps_speed_size, gps_speed_color, BOLD, 3.0f, 6.0f);
+            ui_draw_text(s, card_center_x, gps_speed_y, str, gps_speed_size, COLOR_WHITE, BOLD, 3.0f, 6.0f);
             ui_draw_text(s, card_center_x, gps_unit_y, "km/h", gps_unit_size, COLOR_WHITE, BOLD, 2.0f, 4.0f);
             if (false && szPosRoadName.size() > 0) {
                 nvgTextAlign(s->vg, NVG_ALIGN_RIGHT | NVG_ALIGN_BOTTOM);
