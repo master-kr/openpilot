@@ -2746,19 +2746,20 @@ public:
         ui_draw_text(s, x, text_y, utf8.constData(), font_size, COLOR_WHITE, BOLD, 2.0f, 5.0f);
     }
     void drawSteeringAngle(const UIState* s) {
-        // Match the color to the value the driver actually sees: only a value
-        // rounded to 0.0 is neutral. Every displayed non-zero angle gets its
-        // direction label and color.
+        // Match the color threshold to the value the driver actually sees.
+        // Keep small displayed angles white to avoid color flicker around the
+        // straight-ahead position, while preserving their value and direction.
         const float raw_angle = std::isfinite(steeringAngleDeg) ? steeringAngleDeg : 0.0f;
         const float display_angle = std::round(std::fabs(raw_angle) * 10.0f) / 10.0f;
-        const bool neutral = display_angle == 0.0f;
+        const bool zero_angle = display_angle == 0.0f;
+        const bool neutral_color = display_angle <= 0.9f;
         // IONIQ 5 live data confirms that a positive displayed CarState angle
         // is a physical left turn. This is presentation-only; do not invert the
         // vehicle state consumed by controls or safety.
-        const bool left = !neutral && raw_angle > 0.0f;
-        const bool right = !neutral && raw_angle < 0.0f;
-        const NVGcolor color = left ? nvgRGBA(40, 220, 90, 255) :
-                               right ? nvgRGBA(255, 160, 40, 255) : COLOR_WHITE;
+        const bool left = !zero_angle && raw_angle > 0.0f;
+        const NVGcolor color = neutral_color ? COLOR_WHITE :
+                               left ? nvgRGBA(40, 220, 90, 255) :
+                               nvgRGBA(255, 160, 40, 255);
         // Align with the upper TPMS block (bx = fb_w - 125) and place the
         // steering value below its second pressure row (ending near y=200).
         const int x = s->fb_w - 125;
@@ -2769,7 +2770,7 @@ public:
         // axis points down, so negate it to make the icon turn left visually.
         // Do not clamp: the wheel must keep rotating through the full measured
         // steering range instead of stopping at 90 degrees.
-        const float rotation_deg = neutral ? 0.0f : -raw_angle;
+        const float rotation_deg = zero_angle ? 0.0f : -raw_angle;
         const float rotation = rotation_deg * 3.14159265f / 180.0f;
         // Use the exact steering-wheel artwork from Sunny release-c3. The
         // colored outer ring and value retain the left/right indication while
@@ -2798,7 +2799,7 @@ public:
         nvgRestore(s->vg);
 
         char angle[32];
-        if (neutral) {
+        if (zero_angle) {
           snprintf(angle, sizeof(angle), "0.0°");
         } else {
           const float signed_angle = left ? display_angle : -display_angle;
