@@ -159,7 +159,7 @@ MAP을 사용하지 않을 때는 `MapEnable=0`으로 되돌리면 됩니다.
 | `0` | 커브 중심 보정을 사용하지 않으며 기존 LaneLine 경로를 그대로 유지합니다. 기본값입니다. |
 | `5~50cm` | LaneLine 모드에서 급커브일수록 설정값에 가까운 바깥쪽 보정을 적용하고, 완만한 커브에서는 0에 가까워집니다. 5cm 단위로 설정합니다. |
 
-좌커브에서는 오른쪽, 우커브에서는 왼쪽으로 자동 적용됩니다. 차선 변경 또는 LaneLine 모드 해제 시 목표값을 0으로 전환하고 2초 필터로 부드럽게 감쇠합니다. `AdjustLaneOffset` 및 `PathOffset`과 값을 공유하지 않으며 최종 경로에서 각각 독립적으로 합산됩니다.
+실차에서 확인한 `vTurnSpeed` 부호에 따라 좌커브(`turn<0`)에서는 오른쪽(`curveOff>0`), 우커브(`turn>0`)에서는 왼쪽(`curveOff<0`)으로 자동 적용됩니다. 차선 변경 또는 LaneLine 모드 해제 시 목표값을 0으로 전환하고 2초 필터로 부드럽게 감쇠합니다. `AdjustLaneOffset` 및 `PathOffset`과 값을 공유하지 않으며 최종 경로에서 각각 독립적으로 합산됩니다.
 
 ### `Auto update Cruise speed` (`AutoGasSyncSpeed`)
 

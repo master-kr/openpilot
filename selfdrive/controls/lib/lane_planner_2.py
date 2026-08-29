@@ -25,10 +25,10 @@ def get_curve_center_offset(curve_speed, curve_center_max):
     return 0.0
 
   offset_magnitude = np.interp(abs(curve_speed), [50.0, 200.0], [max_offset, 0.0])
-  # carrotMan.vTurnSpeed inherits model orientationRate.z: positive is a left
-  # curve and negative is a right curve. This planner's offset is right-positive,
-  # so retaining that sign moves left curves right and right curves left.
-  return float(np.clip(offset_magnitude * np.sign(curve_speed),
+  # Verified on-car: vTurnSpeed is negative in left curves and positive in
+  # right curves. This planner's offset is right-positive, so invert the turn
+  # sign to move left curves right and right curves left (outside the curve).
+  return float(np.clip(-offset_magnitude * np.sign(curve_speed),
                        -CURVE_CENTER_OFFSET_LIMIT, CURVE_CENTER_OFFSET_LIMIT))
 
 def clamp(num, min_value, max_value):

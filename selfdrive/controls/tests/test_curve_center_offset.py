@@ -7,10 +7,10 @@ from openpilot.selfdrive.controls.lib.lane_planner_2 import get_curve_center_off
 
 @pytest.mark.parametrize("curve_speed, expected", [
   (0.0, 0.0),
-  (50.0, 0.50),
-  (-50.0, -0.50),
-  (125.0, 0.25),
-  (-125.0, -0.25),
+  (50.0, -0.50),   # right curve -> left/outward
+  (-50.0, 0.50),   # left curve -> right/outward
+  (125.0, -0.25),
+  (-125.0, 0.25),
   (200.0, 0.0),
   (-200.0, 0.0),
   (250.0, 0.0),
@@ -25,8 +25,8 @@ def test_curve_center_offset_disabled_is_zero():
 
 
 def test_curve_center_offset_clips_to_half_meter():
-  assert get_curve_center_offset(50.0, 5.0) == 0.50
-  assert get_curve_center_offset(-50.0, 5.0) == -0.50
+  assert get_curve_center_offset(50.0, 5.0) == -0.50
+  assert get_curve_center_offset(-50.0, 5.0) == 0.50
 
 
 @pytest.mark.parametrize("curve_speed", [math.nan, math.inf, -math.inf])
