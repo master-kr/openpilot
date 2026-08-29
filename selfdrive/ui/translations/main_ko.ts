@@ -179,7 +179,7 @@
     </message>
     <message>
         <source>Maximum outward lane-center offset during curves, in centimeters.</source>
-        <translation>커브 주행 시 차선 중심을 바깥쪽으로 보정하는 최대 오프셋(cm)입니다.</translation>
+        <translation>커브에서 차량이 안쪽 차선에 붙는 현상을 줄이기 위해 주행 경로를 바깥쪽으로 이동합니다. 0은 사용하지 않으며, 5cm 단위로 최대 50cm까지 설정할 수 있습니다.</translation>
     </message>
     <message>
         <source>Sets the maximum distance that the driving position may be adjusted automatically according to lane width and curve conditions. 0 disables this adjustment.</source>
