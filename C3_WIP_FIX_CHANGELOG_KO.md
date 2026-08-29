@@ -152,6 +152,15 @@ MAP을 사용하지 않을 때는 `MapEnable=0`으로 되돌리면 됩니다.
 
 ## 9. 주요 설정값
 
+### `CurveCenterOffset(0)cm` (`CurveCenterOffset`)
+
+| 값 | 동작 |
+|---|---|
+| `0` | 커브 중심 보정을 사용하지 않으며 기존 LaneLine 경로를 그대로 유지합니다. 기본값입니다. |
+| `5~50cm` | LaneLine 모드에서 급커브일수록 설정값에 가까운 바깥쪽 보정을 적용하고, 완만한 커브에서는 0에 가까워집니다. 5cm 단위로 설정합니다. |
+
+좌커브에서는 오른쪽, 우커브에서는 왼쪽으로 자동 적용됩니다. 차선 변경 또는 LaneLine 모드 해제 시 목표값을 0으로 전환하고 2초 필터로 부드럽게 감쇠합니다. `AdjustLaneOffset` 및 `PathOffset`과 값을 공유하지 않으며 최종 경로에서 각각 독립적으로 합산됩니다.
+
 ### `Auto update Cruise speed` (`AutoGasSyncSpeed`)
 
 | 값 | 동작 |
@@ -190,8 +199,13 @@ MAP을 사용하지 않을 때는 `MapEnable=0`으로 되돌리면 됩니다.
 - 브레이크 감속 후 RESUME 시 기존 설정속도가 모든 속도 조건에서 유지되는지 확인
 - OP Long ON/OFF 구성별 SCC GAP 1~4 신호와 UI의 1:1 일치 확인
 - 최신 GPS 박스 높이, 흰색 속도 표시 및 `GPS / 속도 / km/h` 3단 배치 확인
+- `CurveCenterOffset=5cm`부터 좌커브는 오른쪽, 우커브는 왼쪽으로 보정되는지 확인
+- 직선·차선 변경·LaneLine 모드 해제 시 `curveOff`가 부드럽게 0cm로 복귀하는지 확인
+- `CurveCenterOffset=0`에서 기존 경로와 동일하고 `AdjustLaneOffset`·`PathOffset`이 독립적으로 동작하는지 확인
 - 조향 아이콘이 90도에서 멈추지 않고 실제 각도 전체 범위로 회전하는지 확인
 - 한국 OSM 최초 다운로드, 갱신, 재부팅 후 오프라인 도로명 확인
+- 한국어 설정에서 MAP 데이터 제목·상태·안내·다운로드/업데이트 버튼이 모두 한국어로 표시되고 버튼 글자가 잘리지 않는지 확인
+- `AdjustLaneOffset`과 `PathOffset`의 한국어 설명이 각각 자동 위치 조정과 전체 경로 좌우 이동으로 명확히 구분되는지 확인
 - GPS UTC 시스템 시간과 `Asia/Seoul` 화면 시간 장시간 확인
 - 동일한 외기·화면 밝기 조건에서 팬 목표 70°C 적용 전후의 CPU 온도와 디스플레이 발열 비교
 

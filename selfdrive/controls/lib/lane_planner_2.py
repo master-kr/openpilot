@@ -15,6 +15,21 @@ MAX_LANE_DISTANCE = 3.7
 MAX_LANE_CENTERING_AWAY = 1.85
 KEEP_MIN_DISTANCE_FROM_LANE = 1.35
 KEEP_MIN_DISTANCE_FROM_EDGELANE = 1.15
+CURVE_CENTER_OFFSET_LIMIT = 0.50
+
+
+def get_curve_center_offset(curve_speed, curve_center_max):
+  """Return a right-positive offset that moves the path outside the curve."""
+  max_offset = float(np.clip(curve_center_max, 0.0, CURVE_CENTER_OFFSET_LIMIT))
+  if not np.isfinite(curve_speed):
+    return 0.0
+
+  offset_magnitude = np.interp(abs(curve_speed), [50.0, 200.0], [max_offset, 0.0])
+  # carrotMan.vTurnSpeed inherits model orientationRate.z: positive is a left
+  # curve and negative is a right curve. This planner's offset is right-positive,
+  # so retaining that sign moves left curves right and right curves left.
+  return float(np.clip(offset_magnitude * np.sign(curve_speed),
+                       -CURVE_CENTER_OFFSET_LIMIT, CURVE_CENTER_OFFSET_LIMIT))
 
 def clamp(num, min_value, max_value):
   # weird broken case, do something reasonable
@@ -68,6 +83,8 @@ class LanePlanner:
     self.lane_width_left_filtered = FirstOrderFilter(1.0, 1.0, DT_MDL)
     self.lane_width_right_filtered = FirstOrderFilter(1.0, 1.0, DT_MDL)
     self.lane_offset_filtered = FirstOrderFilter(0.0, 2.0, DT_MDL)
+    self.curve_center_offset_filtered = FirstOrderFilter(0.0, 2.0, DT_MDL)
+    self.curve_center_offset = 0.0
 
     self.lanefull_mode = False
     self.d_prob_count = 0
@@ -102,7 +119,7 @@ class LanePlanner:
       self.l_lane_change_prob = desire_state[log.Desire.laneChangeLeft]
       self.r_lane_change_prob = desire_state[log.Desire.laneChangeRight]
 
-  def get_d_path(self, CS, v_ego, path_t, path_xyz, curve_speed):
+  def get_d_path(self, CS, v_ego, path_t, path_xyz, curve_speed, curve_center_max):
     #if v_ego > 0.1:
     #  self.lane_width_updated_count = max(0, self.lane_width_updated_count - 1)
     # Reduce reliance on lanelines that are too far apart or
@@ -245,8 +262,18 @@ class LanePlanner:
           lane_path_y_interp = np.interp(path_t * (1.0 + adjustLaneTime), self.ll_t[safe_idxs], lane_path_y[safe_idxs])
           path_xyz[:,1] = self.d_prob * lane_path_y_interp + (1.0 - self.d_prob) * path_xyz[:,1]
 
+    curve_center_target = get_curve_center_offset(curve_speed, curve_center_max)
+    if not laneline_active or self.lane_change_multiplier < 0.5:
+      curve_center_target = 0.0
+    if curve_center_max <= 0.0:
+      # Preserve the exact legacy path whenever the feature is disabled.
+      self.curve_center_offset_filtered.x = 0.0
+    else:
+      self.curve_center_offset_filtered.update(curve_center_target)
+    self.curve_center_offset = float(np.clip(self.curve_center_offset_filtered.x,
+                                             -CURVE_CENTER_OFFSET_LIMIT, CURVE_CENTER_OFFSET_LIMIT))
 
-    path_xyz[:, 1] += (CAMERA_OFFSET + self.lane_offset_filtered.x)
+    path_xyz[:, 1] += (CAMERA_OFFSET + self.lane_offset_filtered.x + self.curve_center_offset)
 
     self.offset_total = self.lane_offset_filtered.x
 

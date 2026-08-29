@@ -709,14 +709,15 @@ CarrotPanel::CarrotPanel(QWidget* parent) : QWidget(parent) {
   latLongToggles = new ListWidget(this);
   latLongToggles->addItem(new CValueControl("UseLaneLineSpeed", tr("Laneline mode speed(0)"), tr("Laneline mode, lat_mpc control used"), 0, 200, 5));
   latLongToggles->addItem(new CValueControl("UseLaneLineCurveSpeed", tr("Laneline mode curve speed(0)"), tr("In lane-line mode, uses lane-based curvature control only when the absolute turn-speed target is above this km/h threshold."), 0, 200, 5));
-  latLongToggles->addItem(new CValueControl("AdjustLaneOffset", tr("AdjustLaneOffset(0)cm"), tr("Maximum automatic lane-center offset adjustment, in centimeters."), 0, 500, 5));
+  latLongToggles->addItem(new CValueControl("CurveCenterOffset", tr("CurveCenterOffset(0)cm"), tr("Maximum outward lane-center offset during curves, in centimeters."), 0, 50, 5));
+  latLongToggles->addItem(new CValueControl("AdjustLaneOffset", tr("AdjustLaneOffset(0)cm"), tr("Sets the maximum distance that the driving position may be adjusted automatically according to lane width and curve conditions. 0 disables this adjustment."), 0, 500, 5));
   latLongToggles->addItem(new CValueControl("LaneChangeNeedTorque", tr("LaneChange need torque"), tr("-1:Disable lanechange, 0: no need torque, 1:need torque"), -1, 1, 1));
   latLongToggles->addItem(new CValueControl("LaneChangeDelay", tr("LaneChange delay"), tr("Delay before an automatic lane change starts after the blinker request, scaled by 0.1 seconds."), 0, 100, 5));
   latLongToggles->addItem(new CValueControl("LaneChangeBsd", tr("LaneChange Bsd"), tr("-1:ignore bsd, 0:BSD detect, 1: block steer torque"), -1, 1, 1));
   latLongToggles->addItem(new CValueControl("LaneLineCheck", tr("LaneChange LineCheck"), tr("0:Color+Type, 1:Type only, 2:Type+torque override solid"), 0, 2, 1));
   latLongToggles->addItem(new CValueControl("CustomSR", tr("LAT: SteerRatiox0.1(0)"), tr("Custom SteerRatio"), 0, 300, 1));
   latLongToggles->addItem(new CValueControl("SteerRatioRate", tr("LAT: SteerRatioRatex0.01(100)"), tr("SteerRatio apply rate"), 30, 170, 1));
-  latLongToggles->addItem(new CValueControl("PathOffset", tr("LAT: PathOffset"), tr("(-)left, (+)right"), -150, 150, 1));
+  latLongToggles->addItem(new CValueControl("PathOffset", tr("LAT: PathOffset"), tr("Shifts the entire driving path sideways. Negative values move it left, positive values move it right, and 0 applies no shift."), -150, 150, 1));
   latLongToggles->addItem(new CValueControl("SteerActuatorDelay", tr("LAT:SteerActuatorDelay(30)"), tr("x0.01, 0:LiveDelay"), 0, 100, 1));
   latLongToggles->addItem(new CValueControl("LatSmoothSec", tr("LAT:LatSmoothSec(13)"), tr("Lane-based desired-curvature smoothing time and look-ahead adjustment, scaled by 0.01 seconds."), 1, 30, 1));
   latLongToggles->addItem(new CValueControl("LateralTorqueCustom", tr("LAT: TorqueCustom(0)"), tr("Selects stock live torque parameters or the custom acceleration-factor/friction values below."), 0, 2, 1));
@@ -1037,6 +1038,8 @@ void CValueControl::decreaseValue() {
 MapDataControl::MapDataControl(QWidget *parent)
     : ButtonControl(tr("South Korea map data"), tr("Download/Update"),
                     tr("Set Use map data to 1, then press this button to download South Korea OpenStreetMap data. Once downloaded, it is used for offline road names and is not downloaded again at every boot."), parent) {
+  // The map action is longer than most settings buttons in both English and Korean.
+  setButtonWidth(330);
   connect(this, &ButtonControl::clicked, this, &MapDataControl::requestDownload);
   connect(&timer, &QTimer::timeout, this, &MapDataControl::refresh);
   timer.setInterval(1000);

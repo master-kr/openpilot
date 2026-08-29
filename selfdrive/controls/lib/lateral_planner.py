@@ -60,6 +60,7 @@ class LateralPlanner:
 
     self.useLaneLineSpeedApply = self.params.get_int("UseLaneLineSpeed")
     self.pathOffset = float(self.params.get_int("PathOffset")) * 0.01
+    self.curveCenterOffset = float(self.params.get_int("CurveCenterOffset")) * 0.01
     self.useLaneLineMode = False
     self.plan_a = np.zeros((TRAJECTORY_SIZE, ))
     self.plan_yaw = np.zeros((TRAJECTORY_SIZE,))
@@ -87,6 +88,7 @@ class LateralPlanner:
       self.readParams = 10
       self.useLaneLineSpeedApply = sm['carState'].useLaneLineSpeed
       self.pathOffset = float(self.params.get_int("PathOffset")) * 0.01
+      self.curveCenterOffset = float(self.params.get_int("CurveCenterOffset")) * 0.01
       self.lateralPathCost = self.params.get_float("LatMpcPathCost") * 0.01
       self.lateralMotionCost = self.params.get_float("LatMpcMotionCost") * 0.01
       LATERAL_ACCEL_COST = self.params.get_float("LatMpcAccelCost") * 0.01
@@ -147,7 +149,8 @@ class LateralPlanner:
     self.LP.lane_width_left = md.meta.laneWidthLeft
     self.LP.lane_width_right = md.meta.laneWidthRight
     self.LP.curvature = measured_curvature
-    self.path_xyz, self.lanelines_active = self.LP.get_d_path(sm['carState'], v_ego_car, self.t_idxs, self.path_xyz, self.curve_speed)
+    self.path_xyz, self.lanelines_active = self.LP.get_d_path(sm['carState'], v_ego_car, self.t_idxs, self.path_xyz,
+                                                             self.curve_speed, self.curveCenterOffset)
 
     if self.lanelines_active:
       self.plan_yaw, self.plan_yaw_rate = yaw_from_path_no_scipy(
@@ -256,12 +259,17 @@ class LateralPlanner:
 
     self.x_sol = self.lat_mpc.x_sol
 
+    lane_offset_debug = ""
+    if self.lanelines_active:
+      lane_offset_debug = (f"offset={self.LP.offset_total * 100.0:.1f}cm "
+                           f"curveOff={self.LP.curve_center_offset * 100.0:.1f}cm "
+                           f"turn={np.clip(self.curve_speed, -200, 200):.0f}km/h")
     debugText = (
       f"{'lanemode' if self.lanelines_active else 'laneless'} | " +
       f"{self.LP.lane_width_left:.1f}m | " +
       f"{self.LP.lane_width:.1f}m | " +
       f"{self.LP.lane_width_right:.1f}m | " +
-      f"{f'offset={self.LP.offset_total * 100.0:.1f}cm turn={np.clip(self.curve_speed, -200, 200):.0f}km/h' if self.lanelines_active else ''}"
+      lane_offset_debug
     )
 
     lateralPlan.latDebugText = debugText

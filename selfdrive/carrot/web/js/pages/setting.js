@@ -896,6 +896,7 @@ const SETTING_PARAM_DISPLAY_TYPES = Object.freeze({
   ApplyModelSpeed: "percent",
   UseLaneLineSpeed: "speedKph",
   UseLaneLineCurveSpeed: "speedKph",
+  CurveCenterOffset: "distanceCm",
   AdjustLaneOffset: "distanceCm",
   SoundVolumeAdjust: "percent",
   SoundVolumeAdjustEngage: "percent",

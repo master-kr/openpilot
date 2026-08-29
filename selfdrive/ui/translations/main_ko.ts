@@ -178,8 +178,12 @@
         <translation>모델이 인식한 신호등 정지 위치에 적용하는 거리 보정값(cm)입니다.</translation>
     </message>
     <message>
-        <source>Maximum automatic lane-center offset adjustment, in centimeters.</source>
-        <translation>자동 차로 중앙 보정에 허용할 최대 오프셋(cm)입니다.</translation>
+        <source>Maximum outward lane-center offset during curves, in centimeters.</source>
+        <translation>커브 주행 시 차선 중심을 바깥쪽으로 보정하는 최대 오프셋(cm)입니다.</translation>
+    </message>
+    <message>
+        <source>Sets the maximum distance that the driving position may be adjusted automatically according to lane width and curve conditions. 0 disables this adjustment.</source>
+        <translation>차선 폭과 커브 상태에 따라 주행 위치를 자동으로 조정할 때 허용하는 최대 거리(cm)입니다. 0은 보정하지 않습니다.</translation>
     </message>
     <message>
         <source>Selects stock live torque parameters or the custom acceleration-factor/friction values below.</source>
@@ -462,8 +466,8 @@
         <translation>사용자 조향비를 적용하는 비율입니다. 설정값×0.01입니다.</translation>
     </message>
     <message>
-        <source>(-)left, (+)right</source>
-        <translation>주행 경로 위치를 보정합니다. 음수는 왼쪽, 양수는 오른쪽입니다.</translation>
+        <source>Shifts the entire driving path sideways. Negative values move it left, positive values move it right, and 0 applies no shift.</source>
+        <translation>주행 경로 전체를 좌우로 일정하게 옮깁니다. 음수(-)는 왼쪽, 양수(+)는 오른쪽이며 0은 이동하지 않습니다.</translation>
     </message>
     <message>
         <source>x0.01, 0:LiveDelay</source>
@@ -556,58 +560,6 @@
     <message>
         <source>Use map data</source>
         <translation>MAP 데이터 사용</translation>
-    </message>
-    <message>
-        <source>South Korea map data</source>
-        <translation>한국 MAP 데이터</translation>
-    </message>
-    <message>
-        <source>Download/Update</source>
-        <translation>다운로드/갱신</translation>
-    </message>
-    <message>
-        <source>Set Use map data to 1, then press this button to download South Korea OpenStreetMap data. Once downloaded, it is used for offline road names and is not downloaded again at every boot.</source>
-        <translation>MAP 데이터 사용을 1로 설정한 뒤 버튼을 누르면 OpenStreetMap 한국 데이터를 내려받습니다. 다운로드가 끝나면 오프라인 도로명에 사용하며 매 부팅마다 다시 받지 않습니다.</translation>
-    </message>
-    <message>
-        <source>Set Use map data to 1 first.</source>
-        <translation>먼저 MAP 데이터 사용을 1로 설정하세요.</translation>
-    </message>
-    <message>
-        <source>Download South Korea offline map data or update the existing data?</source>
-        <translation>한국 오프라인 MAP 데이터를 다운로드하거나 기존 데이터를 갱신하시겠습니까?</translation>
-    </message>
-    <message>
-        <source>Start download</source>
-        <translation>다운로드 시작</translation>
-    </message>
-    <message>
-        <source>Requesting download</source>
-        <translation>다운로드 요청 중</translation>
-    </message>
-    <message>
-        <source>Map disabled</source>
-        <translation>미사용</translation>
-    </message>
-    <message>
-        <source>Preparing download</source>
-        <translation>다운로드 준비 중</translation>
-    </message>
-    <message>
-        <source>Downloading %1/%2 (%3%)</source>
-        <translation>다운로드 중 %1/%2 (%3%)</translation>
-    </message>
-    <message>
-        <source>Download failed %1/%2 · Retry</source>
-        <translation>다운로드 실패 %1/%2 · 재시도</translation>
-    </message>
-    <message>
-        <source>Download complete</source>
-        <translation>다운로드 완료</translation>
-    </message>
-    <message>
-        <source>Not downloaded</source>
-        <translation>미다운로드</translation>
     </message>
     <message>
         <source>1:RoadCam, 2:RoadCam+WideRoadCam</source>
@@ -745,6 +697,61 @@
     <message>
         <source>No %1 location set</source>
         <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>MapDataControl</name>
+    <message>
+        <source>South Korea map data</source>
+        <translation>한국 MAP 데이터</translation>
+    </message>
+    <message>
+        <source>Download/Update</source>
+        <translation>다운로드/업데이트</translation>
+    </message>
+    <message>
+        <source>Set Use map data to 1, then press this button to download South Korea OpenStreetMap data. Once downloaded, it is used for offline road names and is not downloaded again at every boot.</source>
+        <translation>먼저 MAP 데이터 사용을 1로 설정하세요. 이 버튼을 누르면 한국 OpenStreetMap 데이터를 다운로드하거나 업데이트합니다. 완료된 데이터는 오프라인 도로명 표시에 사용되며, 부팅할 때마다 다시 다운로드하지 않습니다.</translation>
+    </message>
+    <message>
+        <source>Set Use map data to 1 first.</source>
+        <translation>먼저 MAP 데이터 사용을 1로 설정하세요.</translation>
+    </message>
+    <message>
+        <source>Download South Korea offline map data or update the existing data?</source>
+        <translation>한국 오프라인 MAP 데이터를 다운로드하거나 기존 데이터를 업데이트하시겠습니까?</translation>
+    </message>
+    <message>
+        <source>Start download</source>
+        <translation>다운로드 시작</translation>
+    </message>
+    <message>
+        <source>Requesting download</source>
+        <translation>다운로드 요청 중</translation>
+    </message>
+    <message>
+        <source>Map disabled</source>
+        <translation>MAP 데이터 미사용</translation>
+    </message>
+    <message>
+        <source>Preparing download</source>
+        <translation>다운로드 준비 중</translation>
+    </message>
+    <message>
+        <source>Downloading %1/%2 (%3%)</source>
+        <translation>다운로드 중 %1/%2 (%3%)</translation>
+    </message>
+    <message>
+        <source>Download failed %1/%2 · Retry</source>
+        <translation>다운로드 실패 %1/%2 · 재시도</translation>
+    </message>
+    <message>
+        <source>Download complete</source>
+        <translation>다운로드 완료</translation>
+    </message>
+    <message>
+        <source>Not downloaded</source>
+        <translation>다운로드되지 않음</translation>
     </message>
 </context>
 <context>

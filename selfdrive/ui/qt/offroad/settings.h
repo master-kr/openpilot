@@ -167,6 +167,8 @@ private:
 };
 
 class MapDataControl : public ButtonControl {
+  Q_OBJECT
+
 public:
   explicit MapDataControl(QWidget *parent = nullptr);
 
